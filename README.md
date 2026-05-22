@@ -35,6 +35,27 @@ It defines durable project rules, frontend standards, architecture rules, and UI
 - [Parameter Configuration Spec](./docs/parameter-config-spec.md)
 - [Development Plan](./docs/development-plan.md)
 
+## Downloads
+
+Download the latest public installers from [GitHub Releases](https://github.com/weberhyj/robot/releases/latest).
+
+Release assets include:
+
+- Windows installer: `.exe`
+- Ubuntu package: `.deb`
+
+Development builds can also be created manually from GitHub Actions:
+
+- [Package Windows](https://github.com/weberhyj/robot/actions/workflows/package-win.yml)
+- [Package Ubuntu](https://github.com/weberhyj/robot/actions/workflows/package-ubuntu.yml)
+
+To publish a new release, push a version tag:
+
+```bash
+git tag v0.0.1
+git push origin v0.0.1
+```
+
 ## Frontend Scope
 
 The frontend should open directly into the control console.
