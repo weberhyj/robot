@@ -1,0 +1,50 @@
+{
+  "name": "roboflow",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ROBOFLOW intelligent sorting desktop application",
+  "author": {
+    "name": "ROBOFLOW Team",
+    "email": "support@roboflow.local"
+  },
+  "homepage": "https://roboflow.local",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "package:win": "tauri build --bundles nsis",
+    "package:ubuntu": "tauri build --bundles deb",
+    "preview": "vite preview",
+    "test": "vitest run --passWithNoTests",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "@tauri-apps/api": "^2.11.0",
+    "echarts": "^6.0.0",
+    "element-plus": "^2.14.0",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.34",
+    "vue-i18n": "^11.4.2",
+    "vue-router": "^5.0.6"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^8.2.0",
+    "@tauri-apps/cli": "^2.11.2",
+    "@tsconfig/node22": "^22.0.5",
+    "@types/node": "^25.6.2",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.3.0",
+    "eslint-plugin-format": "^2.0.1",
+    "jsdom": "^29.1.1",
+    "sass": "^1.99.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.11",
+    "vitest": "^4.1.5",
+    "vue-tsc": "^3.2.8"
+  }
+}

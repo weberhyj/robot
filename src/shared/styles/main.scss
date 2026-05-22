@@ -1,0 +1,186 @@
+:root {
+  color: #172033;
+  background: #f4f7fb;
+  font-family:
+    Geist,
+    Satoshi,
+    'Segoe UI',
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+
+  --rf-color-bg: #f5f7fa;
+  --rf-color-surface: #fcfdfe;
+  --rf-color-panel: #ffffff;
+  --rf-color-border: #dfe7f3;
+  --rf-color-text: #172033;
+  --rf-color-text-muted: #68758a;
+  --rf-color-green: #18b76a;
+  --rf-color-blue: #2563eb;
+  --rf-color-yellow: #f5a524;
+  --rf-color-red: #f04444;
+  --rf-color-gray: #8a96a8;
+  --rf-shadow-panel: 0px 18px 34px -12px rgba(31, 43, 66, 5.5%);
+  --rf-shadow-raised: none;
+  --rf-shadow-soft-inset: inset 0 1px 0 rgb(255 255 255 / 76%);
+  --rf-radius-panel: 14px;
+  --rf-radius-shell: 16px;
+  --rf-focus-ring: 0 0 0 3px rgb(47 109 246 / 18%);
+  --rf-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 1280px;
+  color: var(--rf-color-text);
+  background: var(--rf-color-bg);
+  font-variant-numeric: tabular-nums;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+[role='button'],
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled),
+[role='button'],
+a {
+  cursor: pointer;
+}
+
+* {
+  scrollbar-color: #c8d3e2 transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #c8d3e2;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.el-button,
+.el-dropdown-menu__item,
+.el-input__wrapper,
+.el-select__wrapper,
+.el-input-number,
+.el-slider__button {
+  transition:
+    transform 180ms var(--rf-ease-out),
+    box-shadow 180ms var(--rf-ease-out),
+    border-color 180ms var(--rf-ease-out),
+    background-color 180ms var(--rf-ease-out);
+}
+
+.el-button:not(.is-disabled):active,
+.el-dropdown-menu__item:not(.is-disabled):active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused {
+  box-shadow: var(--rf-focus-ring);
+}
+
+.state-dot {
+  position: relative;
+  isolation: isolate;
+}
+
+.state-dot::after {
+  position: absolute;
+  inset: -4px;
+  z-index: -1;
+  border-radius: inherit;
+  background: inherit;
+  content: '';
+  opacity: 0;
+  transform: scale(0.78);
+  animation: rf-status-breathe 2400ms var(--rf-ease-out) infinite;
+}
+
+.dashboard-overview__main-card > *,
+.realtime-monitor__main-card > *,
+.device-status-view__main-card > *,
+.parameter-config__main-card > * {
+  animation: rf-panel-enter 360ms var(--rf-ease-out) both;
+}
+
+.dashboard-overview__main-card > :nth-child(2),
+.realtime-monitor__main-card > :nth-child(2),
+.device-status-view__main-card > :nth-child(2),
+.parameter-config__main-card > :nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.dashboard-overview__main-card > :nth-child(3),
+.realtime-monitor__main-card > :nth-child(3),
+.device-status-view__main-card > :nth-child(3),
+.parameter-config__main-card > :nth-child(3) {
+  animation-delay: 90ms;
+}
+
+@keyframes rf-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rf-status-breathe {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.78);
+  }
+
+  45% {
+    opacity: 0.16;
+    transform: scale(1.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

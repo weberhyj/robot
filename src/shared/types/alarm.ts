@@ -1,0 +1,10 @@
+export type AlarmType
+  = | 'cameraConnectionTimeout'
+    | 'cameraRecognitionError'
+    | 'robotConnectionTimeout'
+    | 'robotError'
+    | 'gripperGraspError'
+    | 'conveyorError'
+    | 'plcConnectionTimeout'
+    | 'binCapacityWarning'
+    | 'binCapacityFull'
