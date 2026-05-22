@@ -137,6 +137,7 @@ function openGraspRecordDialog(row: TaskRow): void {
 
 function openDeviceDetailDialog(device: DeviceStatusItem): void {
   activeDeviceCode.value = device.code
+  cameraDetailStreamUrl.value = device.code === cameraDeviceCode ? getCameraStreamUrl({ fps: 15 }) : ''
   deviceDetailDialogVisible.value = true
   resetDeviceDetail(device.code)
   startDeviceDetailRefresh()
@@ -285,23 +286,9 @@ async function refreshRobotDetail(): Promise<void> {
 }
 
 async function refreshCameraDetail(): Promise<void> {
-  await refreshCameraStreamUrl()
-
   const snapshot = await getCameraStatusSnapshot()
 
   liveDeviceDetailSources.value = mergeLiveDeviceDetails(liveDeviceDetailSources.value, snapshot)
-}
-
-async function refreshCameraStreamUrl(): Promise<void> {
-  if (cameraDetailStreamUrl.value)
-    return
-
-  try {
-    cameraDetailStreamUrl.value = await getCameraStreamUrl({ fps: 15 })
-  }
-  catch {
-    cameraDetailStreamUrl.value = ''
-  }
 }
 
 async function refreshGripperDetail(): Promise<void> {

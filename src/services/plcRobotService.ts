@@ -30,8 +30,8 @@ export async function detectCameraOnce(): Promise<CameraDetectionResult> {
   return await triggerCameraDetection()
 }
 
-export async function getCameraStreamUrl(query: CameraStreamQuery = {}): Promise<string> {
-  return await buildCameraStreamUrl(query)
+export function getCameraStreamUrl(query: CameraStreamQuery = {}): string {
+  return buildCameraStreamUrl(query)
 }
 
 export async function getBinStatusSnapshot(): Promise<PlcRobotStatusSnapshot> {

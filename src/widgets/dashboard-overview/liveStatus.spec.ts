@@ -152,13 +152,13 @@ describe('dashboard device detail mapping', () => {
     ])
   })
 
-  it('maps gripper position into close percent detail', () => {
+  it('maps gripper position into close amount millimeter detail', () => {
     const snapshot: PlcRobotStatusSnapshot = {
       gripper: {
         number: 'GRP-01',
         enabled: true,
         position: 24.8,
-        max_stroke: 4,
+        max_stroke: 40,
         closing_speed: 45,
       },
     }
@@ -177,8 +177,8 @@ describe('dashboard device detail mapping', () => {
 
     expect(gripperDetail?.statusKey).toBe('dashboard.status.enabled')
     expect(gripperDetail?.fields).toEqual([
-      { key: 'close-percent', labelKey: 'dashboard.deviceDetails.fields.closePercent', value: '38%' },
-      { key: 'max-stroke', labelKey: 'dashboard.deviceDetails.fields.maxStroke', value: '4 cm' },
+      { key: 'close-percent', labelKey: 'dashboard.deviceDetails.fields.closePercent', value: '15 mm' },
+      { key: 'max-stroke', labelKey: 'dashboard.deviceDetails.fields.maxStroke', value: '40 mm' },
       { key: 'close-speed', labelKey: 'dashboard.deviceDetails.fields.closeSpeed', value: '45 mm/s' },
     ])
   })

@@ -1,1 +1,1 @@
-export { buildGripperClosePercent, buildGripperClosePositionMm } from '@/entities/device/gripper'
+export { buildGripperCloseAmountMm } from '@/entities/device/gripper'

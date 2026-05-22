@@ -52,10 +52,10 @@ describe('plc robot HTTP API adapter', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/camera/detect')
   })
 
-  it('builds a camera stream URL without fetching JSON', async () => {
-    vi.stubGlobal('window', { location: { protocol: 'http:' } })
+  it('builds a complete camera stream URL without fetching JSON', () => {
+    vi.stubGlobal('window', { location: { origin: 'http://localhost:5174', protocol: 'http:' } })
 
-    await expect(buildCameraStreamUrl({ fps: 15 })).resolves.toBe('/api/v1/camera/stream?fps=15')
+    expect(buildCameraStreamUrl({ fps: 15 })).toBe('http://127.0.0.1:8080/api/v1/camera/stream?fps=15')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

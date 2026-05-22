@@ -2,7 +2,7 @@ import type { DeviceDetailFieldSource, DeviceDetailSource, DeviceDetailType, Dev
 import type { BinStatus, CameraStatus, GripperStatus } from '@/entities/device/types'
 import type { PlcRobotStatusSnapshot } from '@/entities/plc-robot/types'
 import type { RobotJointTelemetry, RobotStatus, RobotTcpPose, RobotTcpRaw } from '@/entities/robot/types'
-import { buildGripperClosePercent } from '@/entities/device/gripper'
+import { buildGripperCloseAmountMm } from '@/entities/device/gripper'
 import { resolveConveyorStatus } from '@/entities/device/status'
 
 const runningStatusKey = 'dashboard.status.running'
@@ -165,6 +165,7 @@ export function mergeLiveDeviceDetails(
 
     if (snapshot.gripper && device.type === 'gripper') {
       const status = getGripperStatus(snapshot.gripper)
+      const maxStrokeMm = normalizeMillimeterLimit(snapshot.gripper.max_stroke)
 
       return {
         ...device,
@@ -175,15 +176,15 @@ export function mergeLiveDeviceDetails(
           {
             key: 'close-percent',
             labelKey: 'dashboard.deviceDetails.fields.closePercent',
-            value: `${formatNumber(buildGripperClosePercent({
+            value: formatMeasurement(buildGripperCloseAmountMm({
               positionMm: snapshot.gripper.position,
-              maxStrokeCm: snapshot.gripper.max_stroke,
-            }), 1)}%`,
+              maxStrokeMm,
+            }), 'mm', 0),
           },
           {
             key: 'max-stroke',
             labelKey: 'dashboard.deviceDetails.fields.maxStroke',
-            value: formatMeasurement(snapshot.gripper.max_stroke, 'cm', 1),
+            value: formatMeasurement(maxStrokeMm, 'mm', 0),
           },
           {
             key: 'close-speed',
@@ -430,6 +431,10 @@ function formatInteger(value: number): string {
   return new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 0,
   }).format(value)
+}
+
+function normalizeMillimeterLimit(value: number): number {
+  return Math.max(0, Math.floor(value))
 }
 
 function formatNullableNumber(value: number | null, fractionDigits: number): string {

@@ -11,7 +11,7 @@ import gripperImage from '@/assets/images/devices/gripper-photo.png'
 import workbenchImage from '@/assets/images/devices/workbench.svg'
 import { closeGripperJaw, detectCameraOnce, getCameraStatusSnapshot, getGripperStatusSnapshot, getPlcStatusSnapshot, openGripperJaw, startConveyorSoftly, stopConveyorSoftly } from '@/services'
 import { useDeviceStatusStore } from '@/stores/deviceStatusStore'
-import { buildGripperClosePercent, buildGripperClosePositionMm } from './gripperControl'
+import { buildGripperCloseAmountMm } from './gripperControl'
 
 const { t } = useI18n()
 const deviceStatusStore = useDeviceStatusStore()
@@ -29,9 +29,9 @@ const cameraFrameRate = shallowRef('--')
 const gripperCode = shallowRef('GRP-01')
 const gripperStatusKey = shallowRef('dashboard.status.offline')
 const gripperTone = shallowRef<'blue' | 'red' | 'gray'>('gray')
-const gripperCurrentClosePercent = shallowRef<number>()
-const gripperTargetClosePercent = shallowRef(0)
-const gripperMaxStrokeCm = shallowRef<number>()
+const gripperCurrentCloseMm = shallowRef<number>()
+const gripperTargetCloseMm = shallowRef(0)
+const gripperMaxStrokeMm = shallowRef<number>()
 let deviceStatusTimer: number | undefined
 const recognitionDialogVisible = shallowRef(false)
 const latestRecognitionResult = shallowRef<CameraDetectionResult>()
@@ -78,7 +78,7 @@ const deviceCards = computed(() => [
     code: gripperCode.value,
     status: t(gripperStatusKey.value),
     metricLabel: t('manual.fields.currentClosePercent'),
-    metricValue: formatPercentLabel(gripperCurrentClosePercent.value),
+    metricValue: formatMillimeterLabel(gripperCurrentCloseMm.value),
     tone: gripperTone.value,
   },
 ] as const)
@@ -93,17 +93,10 @@ const flowSteps = computed<FlowStep[]>(() => [
 ])
 
 const executionResultValue = computed(() => t(flowRecord.executionResultKey))
-const gripperCloseStroke = computed(() => {
-  if (gripperMaxStrokeCm.value === undefined)
-    return '--'
-
-  const stroke = gripperTargetClosePercent.value / 100 * gripperMaxStrokeCm.value
-
-  return `${Number(stroke.toFixed(1))}cm`
-})
 const gripperMaxStrokeText = computed(() =>
-  gripperMaxStrokeCm.value === undefined ? '--' : `${Number(gripperMaxStrokeCm.value.toFixed(1))}cm`)
-const gripperCloseDisabled = computed(() => gripperCommandLoading.value !== undefined || gripperMaxStrokeCm.value === undefined)
+  formatMillimeterLabel(gripperMaxStrokeMm.value))
+const gripperCloseInputMax = computed(() => gripperMaxStrokeMm.value ?? 0)
+const gripperCloseDisabled = computed(() => gripperCommandLoading.value !== undefined || gripperMaxStrokeMm.value === undefined)
 
 const resultRows = computed<ResultRow[]>(() => [
   { labelKey: 'manual.resultFields.materialLoading', value: t(flowRecord.loadingKey), tone: 'green' },
@@ -139,16 +132,33 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString('zh-CN', { hour12: false })
 }
 
-function formatPercent(value: string): string {
-  return value === '' ? '' : `${value}%`
+function formatMillimeter(value: number | string): string {
+  return value === '' ? '' : `${value}mm`
 }
 
-function parsePercent(value: string): string {
-  return value.replace(/[^\d.]/g, '')
+function parseMillimeter(value: string): string {
+  return value.replace(/\D/g, '')
 }
 
-function formatPercentLabel(value: number | undefined): string {
-  return value === undefined ? '--' : `${Number(value.toFixed(1))}%`
+function formatMillimeterLabel(value: number | undefined): string {
+  return value === undefined ? '--' : `${formatInteger(value)}mm`
+}
+
+function formatInteger(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 0,
+  }).format(Math.round(value))
+}
+
+function normalizeMillimeterLimit(value: number): number {
+  return Math.max(0, Math.floor(value))
+}
+
+function normalizeGripperCloseInput(value: number | undefined, maxStrokeMm: number): number {
+  if (value === undefined || !Number.isFinite(value))
+    return 0
+
+  return Math.min(normalizeMillimeterLimit(value), maxStrokeMm)
 }
 
 async function startConveyor(): Promise<void> {
@@ -195,22 +205,20 @@ function viewRecognitionResult(): void {
 }
 
 async function openGripper(): Promise<void> {
+  gripperTargetCloseMm.value = 0
+
   await runGripperCommand('open', openGripperJaw, () => {
-    gripperTargetClosePercent.value = 0
     gripperStatusKey.value = 'manual.status.opened'
   })
 }
 
 async function closeGripper(): Promise<void> {
-  if (gripperMaxStrokeCm.value === undefined) {
+  if (gripperMaxStrokeMm.value === undefined) {
     ElMessage.error(t('manual.messages.gripperMissingMaxStroke'))
     return
   }
 
-  const position = buildGripperClosePositionMm({
-    closePercent: gripperTargetClosePercent.value,
-    maxStrokeCm: gripperMaxStrokeCm.value,
-  })
+  const position = normalizeGripperCloseInput(gripperTargetCloseMm.value, gripperMaxStrokeMm.value)
 
   await runGripperCommand('close', () => closeGripperJaw(position), () => {
     gripperStatusKey.value = 'manual.status.closed'
@@ -247,20 +255,23 @@ async function refreshManualDeviceStatus(): Promise<void> {
   }
 
   if (gripperSnapshot.gripper) {
+    const maxStrokeMm = normalizeMillimeterLimit(gripperSnapshot.gripper.max_stroke)
+
     gripperCode.value = gripperSnapshot.gripper.number
     gripperStatusKey.value = gripperSnapshot.gripper.enabled ? 'dashboard.status.enabled' : 'dashboard.status.error'
     gripperTone.value = gripperSnapshot.gripper.enabled ? 'blue' : 'red'
-    gripperCurrentClosePercent.value = buildGripperClosePercent({
+    gripperCurrentCloseMm.value = buildGripperCloseAmountMm({
       positionMm: gripperSnapshot.gripper.position,
-      maxStrokeCm: gripperSnapshot.gripper.max_stroke,
+      maxStrokeMm,
     })
-    gripperMaxStrokeCm.value = gripperSnapshot.gripper.max_stroke
+    gripperMaxStrokeMm.value = maxStrokeMm
+    gripperTargetCloseMm.value = Math.min(gripperTargetCloseMm.value, maxStrokeMm)
   }
   else {
     gripperStatusKey.value = 'dashboard.status.offline'
     gripperTone.value = 'gray'
-    gripperCurrentClosePercent.value = undefined
-    gripperMaxStrokeCm.value = undefined
+    gripperCurrentCloseMm.value = undefined
+    gripperMaxStrokeMm.value = undefined
   }
 }
 
@@ -474,24 +485,25 @@ onBeforeUnmount(() => {
             <div class="manual-device-card__percent-control">
               <span>{{ t('manual.fields.closePercent') }}</span>
               <el-input-number
-                v-model="gripperTargetClosePercent" :min="0" :max="100" :step="1" :formatter="formatPercent"
-                :parser="parsePercent" size="small" controls-position="right"
+                v-model="gripperTargetCloseMm" :min="0" :max="gripperCloseInputMax" :step="1" :precision="0"
+                step-strictly :formatter="formatMillimeter" :parser="parseMillimeter" size="small"
+                controls-position="right"
               />
-              <strong>{{ gripperCloseStroke }}</strong>
+              <strong>{{ t('manual.fields.carefulOperation') }}</strong>
             </div>
 
             <div class="manual-device-card__actions is-two">
-              <el-button
-                :icon="Unlock" :loading="gripperCommandLoading === 'open'" :disabled="gripperCommandLoading === 'close'"
-                @click="openGripper"
-              >
-                {{ t('manual.actions.open') }}
-              </el-button>
               <el-button
                 type="primary" :icon="Lock" :loading="gripperCommandLoading === 'close'"
                 :disabled="gripperCloseDisabled" @click="closeGripper"
               >
                 {{ t('manual.actions.close') }}
+              </el-button>
+              <el-button
+                :icon="Unlock" :loading="gripperCommandLoading === 'open'" :disabled="gripperCommandLoading === 'close'"
+                @click="openGripper"
+              >
+                {{ t('manual.actions.open') }}
               </el-button>
             </div>
           </div>
@@ -766,8 +778,9 @@ onBeforeUnmount(() => {
 
   &__percent-control {
     display: grid;
-    grid-template-columns: auto 122px 52px;
-    gap: 8px;
+    grid-template-columns: 52px 122px minmax(0, 1fr);
+    column-gap: 4px;
+    row-gap: 8px;
     align-items: center;
     min-width: 0;
     border-radius: 9px;
@@ -785,8 +798,8 @@ onBeforeUnmount(() => {
     }
 
     strong {
-      color: var(--rf-color-blue);
-      font-size: 13px;
+      color: #b45309;
+      font-size: 12px;
       line-height: 1;
       text-align: right;
     }

@@ -41,8 +41,8 @@ export async function triggerCameraDetection(): Promise<CameraDetectionResult> {
   return requestJson<CameraDetectionResult>('/api/v1/camera/detect')
 }
 
-export async function buildCameraStreamUrl(query: CameraStreamQuery = {}): Promise<string> {
-  return await buildApiUrl(buildQueryPath('/api/v1/camera/stream', query))
+export function buildCameraStreamUrl(query: CameraStreamQuery = {}): string {
+  return buildDirectApiUrl(buildQueryPath('/api/v1/camera/stream', query))
 }
 
 export async function fetchBins(): Promise<BinStatus[]> {
@@ -87,6 +87,19 @@ async function buildApiUrl(path: string): Promise<string> {
   const apiBaseUrl = await resolveApiBaseUrl()
 
   return `${apiBaseUrl}${path}`
+}
+
+function buildDirectApiUrl(path: string): string {
+  return `${resolveDirectApiBaseUrl()}${path}`
+}
+
+function resolveDirectApiBaseUrl(): string {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+
+  if (configuredBaseUrl)
+    return trimTrailingSlash(configuredBaseUrl)
+
+  return fallbackApiBaseUrl
 }
 
 async function requestJson<TData>(path: string): Promise<TData> {

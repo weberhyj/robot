@@ -1,35 +1,23 @@
-interface BuildGripperClosePositionOptions {
-  closePercent: number
-  maxStrokeCm: number
-}
-
-interface BuildGripperClosePercentOptions {
+interface BuildGripperCloseAmountOptions {
   positionMm: number
-  maxStrokeCm: number
+  maxStrokeMm: number
 }
 
-export function buildGripperClosePositionMm(options: BuildGripperClosePositionOptions): number {
-  const maxStrokeMm = options.maxStrokeCm * 10
-  const positionMm = maxStrokeMm * (1 - clampPercent(options.closePercent) / 100)
-
-  return roundToOneDecimal(positionMm)
-}
-
-export function buildGripperClosePercent(options: BuildGripperClosePercentOptions): number {
-  const maxStrokeMm = options.maxStrokeCm * 10
+export function buildGripperCloseAmountMm(options: BuildGripperCloseAmountOptions): number {
+  const maxStrokeMm = normalizeNonNegativeNumber(options.maxStrokeMm)
 
   if (maxStrokeMm <= 0)
     return 0
 
-  const closePercent = (maxStrokeMm - options.positionMm) / maxStrokeMm * 100
+  const closeAmountMm = maxStrokeMm - normalizeNonNegativeNumber(options.positionMm)
 
-  return roundToOneDecimal(clampPercent(closePercent))
+  return Math.round(clampCloseAmount(closeAmountMm, maxStrokeMm))
 }
 
-function clampPercent(value: number): number {
-  return Math.min(100, Math.max(0, value))
+function clampCloseAmount(value: number, maxStrokeMm: number): number {
+  return Math.min(maxStrokeMm, Math.max(0, value))
 }
 
-function roundToOneDecimal(value: number): number {
-  return Math.round(value * 10) / 10
+function normalizeNonNegativeNumber(value: number): number {
+  return Number.isFinite(value) ? Math.max(0, value) : 0
 }
