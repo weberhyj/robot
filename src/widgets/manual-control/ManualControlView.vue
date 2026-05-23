@@ -33,6 +33,7 @@ const gripperCurrentCloseMm = shallowRef<number>()
 const gripperTargetCloseMm = shallowRef(0)
 const gripperMaxStrokeMm = shallowRef<number>()
 let deviceStatusTimer: number | undefined
+let manualDeviceStatusRefreshing = false
 const recognitionDialogVisible = shallowRef(false)
 const latestRecognitionResult = shallowRef<CameraDetectionResult>()
 
@@ -300,6 +301,31 @@ async function refreshManualDeviceStatus(): Promise<void> {
   }
 }
 
+async function runManualDeviceStatusRefresh(): Promise<void> {
+  if (manualDeviceStatusRefreshing)
+    return
+
+  manualDeviceStatusRefreshing = true
+
+  try {
+    await refreshManualDeviceStatus()
+  }
+  finally {
+    manualDeviceStatusRefreshing = false
+  }
+}
+
+function stopManualDeviceStatusRefresh(): void {
+  if (deviceStatusTimer) {
+    window.clearInterval(deviceStatusTimer)
+    deviceStatusTimer = undefined
+  }
+}
+
+function handlePageExit(): void {
+  stopManualDeviceStatusRefresh()
+}
+
 function runFullSortingFlow(): void {
   const start = new Date()
   const end = new Date(start.getTime() + 14000)
@@ -430,15 +456,18 @@ function buildRecognitionImageSrc(imageBase64: string | null | undefined): strin
 }
 
 onMounted(() => {
-  void refreshManualDeviceStatus()
+  void runManualDeviceStatusRefresh()
   deviceStatusTimer = window.setInterval(() => {
-    void refreshManualDeviceStatus()
+    void runManualDeviceStatusRefresh()
   }, deviceStatusRefreshInterval)
+  window.addEventListener('beforeunload', handlePageExit)
+  window.addEventListener('pagehide', handlePageExit)
 })
 
 onBeforeUnmount(() => {
-  if (deviceStatusTimer)
-    window.clearInterval(deviceStatusTimer)
+  window.removeEventListener('beforeunload', handlePageExit)
+  window.removeEventListener('pagehide', handlePageExit)
+  stopManualDeviceStatusRefresh()
 })
 </script>
 

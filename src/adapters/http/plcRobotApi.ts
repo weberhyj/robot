@@ -4,6 +4,7 @@ import type { RobotStatus } from '@/entities/robot/types'
 import type { GraspRecordListResponse, GraspRecordQuery, GraspRecordStatistics, TaskListQuery, TaskListResponse } from '@/entities/task/types'
 
 const fallbackApiBaseUrl = 'http://127.0.0.1:8080'
+const requestTimeoutMs = 10000
 let runtimeConfigPromise: Promise<RoboflowRuntimeConfig> | undefined
 
 export async function fetchPlcStatus(): Promise<PlcStatus> {
@@ -112,13 +113,23 @@ function resolveDirectApiBaseUrl(): string {
 }
 
 async function requestJson<TData>(path: string): Promise<TData> {
-  const response = await fetch(await buildApiUrl(path))
+  const controller = new AbortController()
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), requestTimeoutMs)
 
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${response.statusText}`)
+  try {
+    const response = await fetch(await buildApiUrl(path), {
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status} ${response.statusText}`)
+    }
+
+    return await response.json() as TData
   }
-
-  return await response.json() as TData
+  finally {
+    globalThis.clearTimeout(timeoutId)
+  }
 }
 
 function buildQueryPath(path: string, query: Record<string, string | number | undefined>): string {

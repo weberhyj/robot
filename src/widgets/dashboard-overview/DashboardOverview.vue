@@ -49,6 +49,7 @@ const activeTaskId = ref<number>()
 let liveStatusTimer: number | undefined
 let deviceDetailTimer: number | undefined
 let deviceDetailRefreshToken = 0
+let dashboardLiveDataRefreshing = false
 
 const graspRecordStatisticsView = computed(() => buildGraspRecordStatisticsView(liveGraspRecordStatistics.value))
 
@@ -262,6 +263,20 @@ async function refreshDashboardLiveData(): Promise<void> {
   ])
 }
 
+async function runDashboardLiveDataRefresh(): Promise<void> {
+  if (dashboardLiveDataRefreshing)
+    return
+
+  dashboardLiveDataRefreshing = true
+
+  try {
+    await refreshDashboardLiveData()
+  }
+  finally {
+    dashboardLiveDataRefreshing = false
+  }
+}
+
 async function refreshGraspRecordStatistics(): Promise<void> {
   try {
     liveGraspRecordStatistics.value = await fetchGraspRecordStatistics()
@@ -420,10 +435,10 @@ function getStatusMetricBreakdownValue(key: string): string {
 }
 
 onMounted(() => {
-  void refreshDashboardLiveData()
+  void runDashboardLiveDataRefresh()
   void refreshTaskList()
   liveStatusTimer = window.setInterval(() => {
-    void refreshDashboardLiveData()
+    void runDashboardLiveDataRefresh()
   }, liveStatusRefreshInterval)
   window.addEventListener('beforeunload', handlePageExit)
   window.addEventListener('pagehide', handlePageExit)

@@ -16,7 +16,7 @@ describe('plc robot HTTP API adapter', () => {
 
     await expect(sendGripperOpen()).resolves.toEqual({ success: true, action: 'open', message: 'opened' })
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/gripper/control?action=open')
+    expectFetchCalledWith('/api/v1/gripper/control?action=open')
   })
 
   it('sends a gripper close command with target position in millimeters', async () => {
@@ -26,7 +26,7 @@ describe('plc robot HTTP API adapter', () => {
 
     await expect(sendGripperClose(20)).resolves.toEqual({ success: true, action: 'close', message: 'closed' })
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/gripper/control?action=close&position=20')
+    expectFetchCalledWith('/api/v1/gripper/control?action=close&position=20')
   })
 
   it('triggers a single camera detection request', async () => {
@@ -49,7 +49,7 @@ describe('plc robot HTTP API adapter', () => {
       confidence: 98.7,
     })
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/camera/detect')
+    expectFetchCalledWith('/api/v1/camera/detect')
   })
 
   it('builds a complete camera stream URL without fetching JSON', () => {
@@ -72,7 +72,7 @@ describe('plc robot HTTP API adapter', () => {
       alert_types: [{ value: 'camera_timeout', label: 'Camera timeout' }],
     })
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/alert/enums')
+    expectFetchCalledWith('/api/v1/alert/enums')
   })
 
   it('fetches a filtered alert page', async () => {
@@ -100,9 +100,15 @@ describe('plc robot HTTP API adapter', () => {
       total: 1,
     })
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/alert?page=2&page_size=20&alert_type=bin_capacity_full&alert_level=warning&status=pending&start_time=2026-05-11T00%3A00%3A00&end_time=2026-05-12T00%3A00%3A00')
+    expectFetchCalledWith('/api/v1/alert?page=2&page_size=20&alert_type=bin_capacity_full&alert_level=warning&status=pending&start_time=2026-05-11T00%3A00%3A00&end_time=2026-05-12T00%3A00%3A00')
   })
 })
+
+function expectFetchCalledWith(url: string): void {
+  expect(fetchMock).toHaveBeenCalledWith(url, {
+    signal: expect.any(AbortSignal),
+  })
+}
 
 function createJsonResponse(data: unknown): Pick<Response, 'json' | 'ok' | 'status' | 'statusText'> {
   return {
