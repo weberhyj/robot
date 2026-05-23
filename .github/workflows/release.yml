@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -49,13 +51,17 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Windows package
+        env:
+          VITE_APP_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm run package:win
 
       - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: roboflow-windows-installer
-          path: src-tauri/target/release/bundle/nsis/*.exe
+          path: src-tauri/target/release/bundle/nsis/*
           if-no-files-found: error
 
   build-ubuntu:
@@ -66,6 +72,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Tauri Linux dependencies
         run: |
@@ -107,13 +115,17 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Ubuntu package
+        env:
+          VITE_APP_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm run package:ubuntu
 
       - name: Upload Ubuntu package artifact
         uses: actions/upload-artifact@v4
         with:
           name: roboflow-ubuntu-deb
-          path: src-tauri/target/release/bundle/deb/*.deb
+          path: src-tauri/target/release/bundle/deb/*
           if-no-files-found: error
 
   publish-release:
@@ -131,6 +143,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download package artifacts
         uses: actions/download-artifact@v4
@@ -141,12 +155,17 @@ jobs:
       - name: List release assets
         run: ls -la release-assets
 
+      - name: Create updater manifest
+        run: node .github/scripts/create-latest-json.mjs release-assets
+
       - name: Create or update GitHub Release
         run: |
+          mapfile -t ASSETS < <(find release-assets -type f)
+
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" release-assets/* --clobber
+            gh release upload "$RELEASE_TAG" "${ASSETS[@]}" --clobber
           else
-            gh release create "$RELEASE_TAG" release-assets/* \
+            gh release create "$RELEASE_TAG" "${ASSETS[@]}" \
               --title "ROBOFLOW $RELEASE_TAG" \
               --notes "ROBOFLOW desktop installers."
           fi

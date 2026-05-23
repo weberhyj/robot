@@ -1,20 +1,10 @@
-import type { AlarmType } from '@/shared/types/alarm'
+import type { AlertLevel, AlertProcessStatus } from '@/entities/alarm/types'
 
-export type { AlarmType } from '@/shared/types/alarm'
+export type AlarmRecordTagType = 'danger' | 'warning' | 'info' | 'success'
 
-export type AlarmLevel = 'critical' | 'warning' | 'info'
-
-export type AlarmProcessStatus = 'unhandled' | 'processing' | 'completed'
-
-export interface AlarmRecordSource {
-  id: string
-  alarmTime: string
-  type: AlarmType
-  level: AlarmLevel
-  contentKey: string
-  status: AlarmProcessStatus
-  handler: string
-  handledAt: string
+export interface AlarmRecordFilterOptionSource {
+  value: string
+  labelKey: string
 }
 
 export interface AlarmRecordRow {
@@ -22,17 +12,17 @@ export interface AlarmRecordRow {
   alarmTime: string
   type: string
   level: string
-  levelType: 'danger' | 'warning' | 'info'
+  levelType: AlarmRecordTagType
   content: string
   status: string
-  statusType: 'danger' | 'warning' | 'success'
+  statusType: AlarmRecordTagType
   handler: string
   handledAt: string
 }
 
 export interface AlarmRecordFilters {
-  type: AlarmType | ''
-  level: AlarmLevel | ''
-  status: AlarmProcessStatus | ''
+  type: string
+  level: AlertLevel | ''
+  status: AlertProcessStatus | ''
   timeRange: [string, string] | []
 }

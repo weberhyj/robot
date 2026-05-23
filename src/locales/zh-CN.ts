@@ -432,6 +432,14 @@ export default {
       opened: '已张开',
       closed: '按设定闭合',
     },
+    confirmations: {
+      confirm: '确认',
+      cancel: '取消',
+      gripperClose: {
+        title: '确认闭合夹爪',
+        message: '将按当前闭合程度 {position} 执行夹爪闭合，请确认夹爪区域安全。是否继续？',
+      },
+    },
     messages: {
       conveyorStartSuccess: '传送带软启动指令已发送',
       conveyorStartFailed: '传送带软启动指令发送失败',
@@ -528,6 +536,17 @@ export default {
     controlMode: '控制模式',
     ip: 'IP 地址',
     version: '版本',
+    update: {
+      check: '检查更新',
+      progress: '{progress}%',
+      noUpdate: '当前已是最新版本',
+      confirmTitle: '发现新版本',
+      confirmMessage: '当前版本 {currentVersion}，发现新版本 {version}。是否立即下载并安装？',
+      confirm: '立即更新',
+      cancel: '稍后',
+      installed: '更新安装完成，正在重启应用',
+      failed: '检查或安装更新失败，请确认网络和更新配置',
+    },
   },
   parameters: {
     kicker: '参数配置',

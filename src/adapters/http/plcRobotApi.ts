@@ -1,3 +1,4 @@
+import type { AlertEnumsResponse, AlertListQuery, AlertListResponse } from '@/entities/alarm/types'
 import type { BinStatus, CameraDetectionResult, CameraStatus, CameraStreamQuery, GripperControlResponse, GripperStatus, PlcStatus } from '@/entities/device/types'
 import type { RobotStatus } from '@/entities/robot/types'
 import type { GraspRecordListResponse, GraspRecordQuery, GraspRecordStatistics, TaskListQuery, TaskListResponse } from '@/entities/task/types'
@@ -62,6 +63,14 @@ export async function fetchTaskGraspRecords(
 
 export async function fetchGraspRecordStatistics(): Promise<GraspRecordStatistics> {
   return requestJson<GraspRecordStatistics>('/api/v1/task/grasp_records/statistics')
+}
+
+export async function fetchAlertEnums(): Promise<AlertEnumsResponse> {
+  return requestJson<AlertEnumsResponse>('/api/v1/alert/enums')
+}
+
+export async function fetchAlertPage(query: AlertListQuery = {}): Promise<AlertListResponse> {
+  return requestJson<AlertListResponse>(buildQueryPath('/api/v1/alert', query))
 }
 
 async function resolveApiBaseUrl(): Promise<string> {

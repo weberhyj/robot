@@ -28,6 +28,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "resources": [
       "../config.json"
     ],
@@ -40,6 +41,17 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDU5QzE4NTBCODU4RkRGNjAKUldSZzM0K0ZDNFhCV1ljemVxdWFhYm1rNFBYeUtxcWlWRnRad1RndVYvUXF0bk1kWmM0a1pqNncK",
+      "endpoints": [
+        "https://github.com/weberhyj/robot/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

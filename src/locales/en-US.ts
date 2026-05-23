@@ -432,6 +432,14 @@ export default {
       opened: 'Opened',
       closed: 'Closed by Setting',
     },
+    confirmations: {
+      confirm: 'Confirm',
+      cancel: 'Cancel',
+      gripperClose: {
+        title: 'Confirm Gripper Close',
+        message: 'Close the gripper to {position}. Confirm the gripper area is safe before continuing.',
+      },
+    },
     messages: {
       conveyorStartSuccess: 'Conveyor soft start command sent',
       conveyorStartFailed: 'Failed to send conveyor soft start command',
@@ -528,6 +536,17 @@ export default {
     controlMode: 'Control Mode',
     ip: 'IP',
     version: 'Version',
+    update: {
+      check: 'Check Update',
+      progress: '{progress}%',
+      noUpdate: 'You are already on the latest version',
+      confirmTitle: 'New Version Available',
+      confirmMessage: 'Current version: {currentVersion}. New version: {version}. Download and install now?',
+      confirm: 'Update Now',
+      cancel: 'Later',
+      installed: 'Update installed. Restarting the app',
+      failed: 'Failed to check or install update. Please verify network and update configuration',
+    },
   },
   parameters: {
     kicker: 'Parameter Configuration',

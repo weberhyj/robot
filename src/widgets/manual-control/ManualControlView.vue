@@ -2,7 +2,7 @@
 import type { FlowStep, ResultRow } from './types'
 import type { CameraDetectionResult } from '@/entities/device/types'
 import { Camera, CircleCheck, Lock, RefreshRight, SwitchButton, Unlock, VideoPause, VideoPlay, View } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onBeforeUnmount, onMounted, reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import cameraImage from '@/assets/images/devices/camera-photo.png'
@@ -219,10 +219,35 @@ async function closeGripper(): Promise<void> {
   }
 
   const position = normalizeGripperCloseInput(gripperTargetCloseMm.value, gripperMaxStrokeMm.value)
+  const confirmed = await confirmGripperClose(position)
+
+  if (!confirmed)
+    return
 
   await runGripperCommand('close', () => closeGripperJaw(position), () => {
     gripperStatusKey.value = 'manual.status.closed'
   })
+}
+
+async function confirmGripperClose(position: number): Promise<boolean> {
+  try {
+    await ElMessageBox.confirm(
+      t('manual.confirmations.gripperClose.message', { position: formatMillimeterLabel(position) }),
+      t('manual.confirmations.gripperClose.title'),
+      {
+        autofocus: false,
+        cancelButtonText: t('manual.confirmations.cancel'),
+        closeOnClickModal: false,
+        confirmButtonText: t('manual.confirmations.confirm'),
+        type: 'warning',
+      },
+    )
+
+    return true
+  }
+  catch {
+    return false
+  }
 }
 
 async function refreshManualDeviceStatus(): Promise<void> {

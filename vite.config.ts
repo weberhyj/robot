@@ -1,10 +1,28 @@
+import { execSync } from 'node:child_process'
 import process from 'node:process'
 import { fileURLToPath, URL } from 'node:url'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vite'
 
+function resolveAppVersion(): string {
+  const envVersion = process.env.VITE_APP_VERSION?.trim()
+
+  if (envVersion)
+    return envVersion
+
+  try {
+    return execSync('git describe --tags --abbrev=0', { encoding: 'utf8' }).trim()
+  }
+  catch {
+    return `v${process.env.npm_package_version ?? '0.0.0'}`
+  }
+}
+
 export default defineConfig({
   base: './',
+  define: {
+    __APP_VERSION__: JSON.stringify(resolveAppVersion()),
+  },
   plugins: [vue()],
   resolve: {
     alias: {

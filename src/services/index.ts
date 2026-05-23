@@ -11,4 +11,5 @@ export {
   startConveyorSoftly,
   stopConveyorSoftly,
 } from './plcRobotService'
-export { fetchGraspRecordStatistics, fetchTaskGraspRecords, fetchTaskPage } from '@/adapters/http/plcRobotApi'
+export { checkAppUpdate, downloadAndInstallAppUpdate, relaunchApp } from './updateService'
+export { fetchAlertEnums, fetchAlertPage, fetchGraspRecordStatistics, fetchTaskGraspRecords, fetchTaskPage } from '@/adapters/http/plcRobotApi'

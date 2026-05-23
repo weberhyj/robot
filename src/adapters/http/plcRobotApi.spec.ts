@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { buildCameraStreamUrl, sendGripperClose, sendGripperOpen, triggerCameraDetection } from './plcRobotApi'
+import { buildCameraStreamUrl, fetchAlertEnums, fetchAlertPage, sendGripperClose, sendGripperOpen, triggerCameraDetection } from './plcRobotApi'
 
 const fetchMock = vi.fn()
 
@@ -57,6 +57,50 @@ describe('plc robot HTTP API adapter', () => {
 
     expect(buildCameraStreamUrl({ fps: 15 })).toBe('http://127.0.0.1:8080/api/v1/camera/stream?fps=15')
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('fetches alert enum dictionaries', async () => {
+    vi.stubGlobal('window', { location: { protocol: 'http:' } })
+    vi.stubGlobal('fetch', fetchMock)
+    fetchMock.mockResolvedValue(createJsonResponse({
+      alert_types: [{ value: 'camera_timeout', label: 'Camera timeout' }],
+      alert_levels: [{ value: 'critical', label: 'Critical' }],
+      alert_statuses: [{ value: 'pending', label: 'Pending' }],
+    }))
+
+    await expect(fetchAlertEnums()).resolves.toMatchObject({
+      alert_types: [{ value: 'camera_timeout', label: 'Camera timeout' }],
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/alert/enums')
+  })
+
+  it('fetches a filtered alert page', async () => {
+    vi.stubGlobal('window', { location: { protocol: 'http:' } })
+    vi.stubGlobal('fetch', fetchMock)
+    fetchMock.mockResolvedValue(createJsonResponse({
+      total: 1,
+      page: 2,
+      page_size: 20,
+      total_pages: 3,
+      items: [],
+    }))
+
+    await expect(fetchAlertPage({
+      page: 2,
+      page_size: 20,
+      alert_type: 'bin_capacity_full',
+      alert_level: 'warning',
+      status: 'pending',
+      start_time: '2026-05-11T00:00:00',
+      end_time: '2026-05-12T00:00:00',
+    })).resolves.toMatchObject({
+      page: 2,
+      page_size: 20,
+      total: 1,
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/alert?page=2&page_size=20&alert_type=bin_capacity_full&alert_level=warning&status=pending&start_time=2026-05-11T00%3A00%3A00&end_time=2026-05-12T00%3A00%3A00')
   })
 })
 

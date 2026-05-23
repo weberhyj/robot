@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Tauri Linux dependencies
         run: |
@@ -56,12 +58,16 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Ubuntu package
+        env:
+          VITE_APP_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm run package:ubuntu
 
       - name: Upload Ubuntu package
         uses: actions/upload-artifact@v4
         with:
           name: roboflow-ubuntu-deb
-          path: src-tauri/target/release/bundle/deb/*.deb
+          path: src-tauri/target/release/bundle/deb/*
           if-no-files-found: error
           retention-days: 30

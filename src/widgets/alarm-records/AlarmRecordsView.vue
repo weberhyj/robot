@@ -1,51 +1,62 @@
 <script setup lang="ts">
-import type { AlarmLevel, AlarmProcessStatus, AlarmRecordFilters, AlarmRecordRow, AlarmRecordSource, AlarmType } from './types'
+import type { AlarmRecordFilterOptionSource, AlarmRecordFilters, AlarmRecordRow, AlarmRecordTagType } from './types'
+import type { AlertEnumsResponse, AlertListQuery, AlertOption, AlertRecord } from '@/entities/alarm/types'
+import type { AlarmType as DashboardAlarmType } from '@/shared/types/alarm'
 import { RefreshRight, Search } from '@element-plus/icons-vue'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { alarmLevelOptions, alarmRecordSources, alarmStatusOptions, alarmTypeOptions } from './data'
+import { fetchAlertEnums, fetchAlertPage } from '@/services'
+import {
+  dashboardAlarmTypeToApiAlertType,
+  fallbackAlarmLevelOptions,
+  fallbackAlarmStatusOptions,
+  fallbackAlarmTypeOptions,
+} from './data'
 
 const { t } = useI18n()
 const route = useRoute()
 
 const pageSizeOptions = [10, 20, 50]
+const apiAlertTypeValues = new Set(fallbackAlarmTypeOptions.map(option => option.value))
 const queryForm = reactive<AlarmRecordFilters>({
   type: '',
   level: '',
   status: '',
   timeRange: [],
 })
-const appliedFilters = ref<AlarmRecordFilters>(createEmptyFilters())
-const currentPage = ref(1)
-const pageSize = ref(10)
+const appliedFilters = shallowRef<AlarmRecordFilters>(createEmptyFilters())
+const currentPage = shallowRef(1)
+const pageSize = shallowRef(10)
+const alertEnums = shallowRef<AlertEnumsResponse>()
+const tableRows = shallowRef<AlarmRecordRow[]>([])
+const totalRecords = shallowRef(0)
+const tableLoading = shallowRef(false)
+let alertListRefreshToken = 0
 
-const alarmTypeSelectOptions = computed(() => alarmTypeOptions.map(value => ({
-  label: t(`alarmRecords.types.${value}`),
-  value,
-})))
-const alarmLevelSelectOptions = computed(() => alarmLevelOptions.map(value => ({
-  label: t(`alarmRecords.levels.${value}`),
-  value,
-})))
-const alarmStatusSelectOptions = computed(() => alarmStatusOptions.map(value => ({
-  label: t(`alarmRecords.statuses.${value}`),
-  value,
-})))
+const alarmTypeSelectOptions = computed(() =>
+  createSelectOptions(alertEnums.value?.alert_types, fallbackAlarmTypeOptions))
+const alarmLevelSelectOptions = computed(() =>
+  createSelectOptions(alertEnums.value?.alert_levels, fallbackAlarmLevelOptions))
+const alarmStatusSelectOptions = computed(() =>
+  createSelectOptions(alertEnums.value?.alert_statuses, fallbackAlarmStatusOptions))
 
-const filteredSources = computed(() => alarmRecordSources.filter(record => matchFilters(record, appliedFilters.value)))
-const totalRecords = computed(() => filteredSources.value.length)
-const tableRows = computed<AlarmRecordRow[]>(() => filteredSources.value
-  .slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value)
-  .map(toTableRow))
+onMounted(() => {
+  void refreshAlertEnums()
+})
 
 watch(
   () => route.query.type,
   () => {
     applyRouteQueryFilters()
+    refreshFirstPage()
   },
   { immediate: true },
 )
+
+watch([currentPage, pageSize], () => {
+  void refreshAlertRecords()
+})
 
 function createEmptyFilters(): AlarmRecordFilters {
   return {
@@ -54,6 +65,19 @@ function createEmptyFilters(): AlarmRecordFilters {
     status: '',
     timeRange: [],
   }
+}
+
+function createSelectOptions(
+  apiOptions: AlertOption[] | undefined,
+  fallbackOptions: AlarmRecordFilterOptionSource[],
+): AlertOption[] {
+  if (apiOptions?.length)
+    return apiOptions
+
+  return fallbackOptions.map(option => ({
+    value: option.value,
+    label: t(option.labelKey),
+  }))
 }
 
 function cloneFilters(filters: AlarmRecordFilters): AlarmRecordFilters {
@@ -71,9 +95,14 @@ function getRouteAlarmType(): AlarmRecordFilters['type'] {
   if (typeof routeType !== 'string')
     return ''
 
-  return alarmTypeOptions.includes(routeType as AlarmType)
-    ? routeType as AlarmType
-    : ''
+  if (isDashboardAlarmType(routeType))
+    return dashboardAlarmTypeToApiAlertType[routeType]
+
+  return apiAlertTypeValues.has(routeType) ? routeType : ''
+}
+
+function isDashboardAlarmType(value: string): value is DashboardAlarmType {
+  return value in dashboardAlarmTypeToApiAlertType
 }
 
 function applyRouteQueryFilters(): void {
@@ -84,63 +113,126 @@ function applyRouteQueryFilters(): void {
     type: routeAlarmType,
   })
   appliedFilters.value = cloneFilters(queryForm)
-  currentPage.value = 1
 }
 
-function matchFilters(record: AlarmRecordSource, filters: AlarmRecordFilters): boolean {
-  const [startTime, endTime] = filters.timeRange
-
-  return (!filters.type || record.type === filters.type)
-    && (!filters.level || record.level === filters.level)
-    && (!filters.status || record.status === filters.status)
-    && (!startTime || record.alarmTime >= startTime)
-    && (!endTime || record.alarmTime <= endTime)
+async function refreshAlertEnums(): Promise<void> {
+  try {
+    alertEnums.value = await fetchAlertEnums()
+  }
+  catch {
+    alertEnums.value = undefined
+  }
 }
 
-function toTableRow(record: AlarmRecordSource): AlarmRecordRow {
+async function refreshAlertRecords(): Promise<void> {
+  const refreshToken = ++alertListRefreshToken
+  tableLoading.value = true
+
+  try {
+    const response = await fetchAlertPage(buildAlertListQuery())
+
+    if (refreshToken !== alertListRefreshToken)
+      return
+
+    tableRows.value = response.items.map(toTableRow)
+    totalRecords.value = response.total
+  }
+  catch {
+    if (refreshToken !== alertListRefreshToken)
+      return
+
+    tableRows.value = []
+    totalRecords.value = 0
+  }
+  finally {
+    if (refreshToken === alertListRefreshToken)
+      tableLoading.value = false
+  }
+}
+
+function buildAlertListQuery(): AlertListQuery {
+  const [startTime, endTime] = appliedFilters.value.timeRange
+
   return {
-    id: record.id,
-    alarmTime: record.alarmTime,
-    type: t(`alarmRecords.types.${record.type}`),
-    level: t(`alarmRecords.levels.${record.level}`),
-    levelType: getLevelType(record.level),
-    content: t(record.contentKey),
-    status: t(`alarmRecords.statuses.${record.status}`),
+    page: currentPage.value,
+    page_size: pageSize.value,
+    alert_type: appliedFilters.value.type || undefined,
+    alert_level: appliedFilters.value.level || undefined,
+    status: appliedFilters.value.status || undefined,
+    start_time: toApiDateTime(startTime),
+    end_time: toApiDateTime(endTime),
+  }
+}
+
+function toApiDateTime(value?: string): string | undefined {
+  return value ? value.replace(' ', 'T') : undefined
+}
+
+function toTableRow(record: AlertRecord): AlarmRecordRow {
+  return {
+    id: String(record.id),
+    alarmTime: formatDateTime(record.alert_time),
+    type: record.alert_type_label || getOptionLabel(record.alert_type, alarmTypeSelectOptions.value),
+    level: record.alert_level_label || getOptionLabel(record.alert_level, alarmLevelSelectOptions.value),
+    levelType: getLevelType(record.alert_level),
+    content: getDisplayText(record.content),
+    status: record.status_label || getOptionLabel(record.status, alarmStatusSelectOptions.value),
     statusType: getStatusType(record.status),
-    handler: record.handler,
-    handledAt: record.handledAt,
+    handler: getDisplayText(record.handler),
+    handledAt: formatDateTime(record.handle_time),
   }
 }
 
-function getLevelType(level: AlarmLevel): AlarmRecordRow['levelType'] {
-  const typeMap: Record<AlarmLevel, AlarmRecordRow['levelType']> = {
+function getOptionLabel(value: string, options: AlertOption[]): string {
+  return options.find(option => option.value === value)?.label ?? value
+}
+
+function getDisplayText(value: string | null | undefined): string {
+  return value?.trim() || '--'
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  return value ? value.replace('T', ' ') : '--'
+}
+
+function getLevelType(level: string): AlarmRecordTagType {
+  const typeMap: Record<string, AlarmRecordTagType> = {
     critical: 'danger',
-    warning: 'warning',
     info: 'info',
+    warning: 'warning',
   }
 
-  return typeMap[level]
+  return typeMap[level] ?? 'info'
 }
 
-function getStatusType(status: AlarmProcessStatus): AlarmRecordRow['statusType'] {
-  const typeMap: Record<AlarmProcessStatus, AlarmRecordRow['statusType']> = {
-    unhandled: 'danger',
-    processing: 'warning',
+function getStatusType(status: string): AlarmRecordTagType {
+  const typeMap: Record<string, AlarmRecordTagType> = {
     completed: 'success',
+    pending: 'danger',
+    processing: 'warning',
   }
 
-  return typeMap[status]
+  return typeMap[status] ?? 'info'
+}
+
+function refreshFirstPage(): void {
+  if (currentPage.value === 1) {
+    void refreshAlertRecords()
+    return
+  }
+
+  currentPage.value = 1
 }
 
 function searchRecords(): void {
   appliedFilters.value = cloneFilters(queryForm)
-  currentPage.value = 1
+  refreshFirstPage()
 }
 
 function resetRecords(): void {
   Object.assign(queryForm, createEmptyFilters())
   appliedFilters.value = createEmptyFilters()
-  currentPage.value = 1
+  refreshFirstPage()
 }
 </script>
 
@@ -209,7 +301,7 @@ function resetRecords(): void {
       </section>
 
       <section class="alarm-records-list">
-        <el-table class="alarm-records-list__table" :data="tableRows" border>
+        <el-table v-loading="tableLoading" class="alarm-records-list__table" :data="tableRows" border>
           <el-table-column prop="alarmTime" :label="t('alarmRecords.columns.alarmTime')" min-width="165" />
           <el-table-column prop="type" :label="t('alarmRecords.columns.type')" min-width="150" show-overflow-tooltip />
           <el-table-column :label="t('alarmRecords.columns.level')" min-width="96" align="center">

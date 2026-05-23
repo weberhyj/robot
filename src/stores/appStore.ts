@@ -39,7 +39,7 @@ export const useAppStore = defineStore('app', {
     safetyStatus: 'normal',
     controlMode: readStoredControlMode(),
     ipAddress: '192.168.11.100',
-    version: 'v0.1.0',
+    version: __APP_VERSION__,
     userName: 'admin',
     userRole: 'administrator',
   }),
