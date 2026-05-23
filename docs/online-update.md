@@ -44,6 +44,7 @@ git push origin v0.0.3
 
 The GitHub release workflow will:
 
+- Sync `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml` to the release tag version before packaging.
 - Build Windows and Ubuntu packages.
 - Generate updater artifacts and `.sig` files.
 - Generate `latest.json`.
@@ -57,5 +58,5 @@ The bottom system bar shows the build version and provides a `Check Update` acti
 
 - Tauri updater signatures are mandatory.
 - The private signing key must never be committed.
-- The app version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and `package.json` should be bumped before each release.
-- The UI version shown in the bottom bar is injected from the Git tag at build time.
+- The updater compares against the Tauri internal app version, not only the footer text shown in the UI.
+- The UI version shown in the bottom bar is injected from the Git tag at build time; release builds also sync the Tauri internal version from the same tag.
