@@ -546,6 +546,8 @@ export default {
       cancel: '稍后',
       installed: '更新安装完成，正在重启应用',
       failed: '检查或安装更新失败，请确认网络和更新配置',
+      failedWithReason: '检查或安装更新失败：{reason}',
+      unknownReason: '未知错误',
     },
   },
   parameters: {

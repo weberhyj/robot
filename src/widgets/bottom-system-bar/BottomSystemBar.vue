@@ -58,13 +58,24 @@ async function checkForUpdates(): Promise<void> {
     ElMessage.success(t('systemBar.update.installed'))
     await relaunchApp()
   }
-  catch {
-    ElMessage.error(t('systemBar.update.failed'))
+  catch (error) {
+    console.error('[updater] failed to check or install update', error)
+    ElMessage.error(t('systemBar.update.failedWithReason', { reason: getUpdateErrorMessage(error) }))
   }
   finally {
     updateChecking.value = false
     updateProgress.value = undefined
   }
+}
+
+function getUpdateErrorMessage(error: unknown): string {
+  if (error instanceof Error)
+    return error.message
+
+  if (typeof error === 'string')
+    return error
+
+  return t('systemBar.update.unknownReason')
 }
 </script>
 

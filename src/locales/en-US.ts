@@ -546,6 +546,8 @@ export default {
       cancel: 'Later',
       installed: 'Update installed. Restarting the app',
       failed: 'Failed to check or install update. Please verify network and update configuration',
+      failedWithReason: 'Failed to check or install update: {reason}',
+      unknownReason: 'Unknown error',
     },
   },
   parameters: {
