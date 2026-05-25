@@ -25,26 +25,30 @@ export interface ChangeRecordItem {
   remarkKey: string
 }
 
-export type BinParameterKey = 'ok01' | 'ok02' | 'ng01'
+export type BinParameterKey = string
 
 export type BinParameterTone = 'blue' | 'gray' | 'red'
 
 export interface BinParameterItem {
   key: BinParameterKey
+  id?: number
   code: string
   type: string
+  typeLabel: string
   materialType: string
-  typeKey: string
-  materialTypeKey: string
-  calibrationKey: string
+  materialTypeLabel: string
+  calibrationLabel: string
   image: string
   tone: BinParameterTone
   maxCapacity: number
+  currentLoad: number
+  fillRate: number
   sizeX: number
   sizeY: number
   sizeZ: number
   positionX: number
   positionY: number
+  isCalibrated: boolean
 }
 
 export interface ParameterForm {
@@ -53,15 +57,19 @@ export interface ParameterForm {
 
 export interface BinParameterForm {
   activeBinKey: BinParameterKey
+  id?: number
   code: string
   type: string
   materialType: string
   maxCapacity: number
+  currentLoad: number
+  fillRate: number
   sizeX: number
   sizeY: number
   sizeZ: number
   positionX: number
   positionY: number
+  isCalibrated: boolean
   capacityDetectionEnabled: boolean
   warningThreshold: number
   warningLevel: string

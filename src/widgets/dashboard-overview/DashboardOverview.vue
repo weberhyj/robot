@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { AlarmRow, DeviceDetailSource, DeviceStatusItem, GraspRecordRow, MetricItem, TaskRow, TaskSource } from './types'
+import type { AlertRecord } from '@/entities/alarm/types'
 import type { GraspRecord, GraspRecordStatistics, SortingTask, TaskStatus } from '@/entities/task/types'
 import { ArrowRight, Check, CircleCheck, Close, Document } from '@element-plus/icons-vue'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { fetchGraspRecordStatistics, fetchTaskGraspRecords, fetchTaskPage, getBinStatusSnapshot, getCameraStatusSnapshot, getCameraStreamUrl, getGripperStatusSnapshot, getPlcStatusSnapshot, getRobotStatusSnapshot } from '@/services'
+import { fetchAlertPage, fetchGraspRecordStatistics, fetchTaskGraspRecords, fetchTaskPage, getBinStatusSnapshot, getCameraStatusSnapshot, getCameraStreamUrl, getGripperStatusSnapshot, getPlcStatusSnapshot, getRobotStatusSnapshot } from '@/services'
 import { useDeviceStatusStore } from '@/stores/deviceStatusStore'
-import { alarmSources, deviceDetailSources, deviceSources, metricSources } from './data'
+import { deviceDetailSources, deviceSources, metricSources } from './data'
 import { mergeLiveDeviceDetails, mergeLiveDeviceStatusSources, resetDeviceDetailSource } from './liveStatus'
 import { buildGraspRecordStatisticsView } from './statistics'
 
@@ -23,6 +24,7 @@ const cameraDeviceCode = 'CAM-01'
 const gripperDeviceCode = 'GRP-01'
 const binsDeviceCode = 'BIN-SET-01'
 const taskDisplayLimit = 4
+const criticalAlarmDisplayLimit = 20
 const liveStatusRefreshInterval = 5000
 const deviceDetailRefreshInterval = 1000
 const graspRecordPageSizeOptions = [10, 20, 50]
@@ -41,6 +43,7 @@ const graspRecordPageSize = ref(10)
 const liveDeviceStatusSources = shallowRef(deviceSources)
 const liveDeviceDetailSources = shallowRef(deviceDetailSources)
 const liveTaskSources = shallowRef<TaskSource[]>([])
+const liveAlarmRows = shallowRef<AlarmRow[]>([])
 const liveGraspRecordStatistics = shallowRef<GraspRecordStatistics>()
 const liveGraspRecordRows = shallowRef<GraspRecordRow[]>([])
 const liveGraspRecordTotal = ref(0)
@@ -96,16 +99,8 @@ const deviceStatusItems = computed<DeviceStatusItem[]>(() => liveDeviceStatusSou
   }
 }))
 
-const alarms = computed<AlarmRow[]>(() => alarmSources.map(alarm => ({
-  key: alarm.key,
-  alarmType: alarm.alarmType,
-  time: alarm.time,
-  level: t(alarm.levelKey),
-  content: t(alarm.contentKey),
-  status: t(alarm.statusKey),
-  unconfirmed: alarm.unconfirmed,
-  tone: alarm.tone,
-})))
+const alarms = computed<AlarmRow[]>(() => liveAlarmRows.value)
+const openCriticalAlarmCount = computed(() => alarms.value.filter(alarm => alarm.unconfirmed).length)
 
 const tasks = computed<TaskRow[]>(() => liveTaskSources.value
   .slice(0, taskDisplayLimit)
@@ -260,6 +255,7 @@ async function refreshDashboardLiveData(): Promise<void> {
   await Promise.all([
     refreshLiveDeviceStatuses(),
     refreshGraspRecordStatistics(),
+    refreshCriticalAlarms(),
   ])
 }
 
@@ -283,6 +279,21 @@ async function refreshGraspRecordStatistics(): Promise<void> {
   }
   catch {
     liveGraspRecordStatistics.value = undefined
+  }
+}
+
+async function refreshCriticalAlarms(): Promise<void> {
+  try {
+    const response = await fetchAlertPage({
+      page: 1,
+      page_size: criticalAlarmDisplayLimit,
+      alert_level: 'critical',
+    })
+
+    liveAlarmRows.value = response.items.map(mapAlarmRow)
+  }
+  catch {
+    liveAlarmRows.value = []
   }
 }
 
@@ -379,6 +390,39 @@ function mapGraspRecordRow(record: GraspRecord): GraspRecordRow {
     result: t(`dashboard.graspRecords.results.${record.result}`),
     success: record.result === 'success',
   }
+}
+
+function mapAlarmRow(record: AlertRecord): AlarmRow {
+  return {
+    key: String(record.id),
+    alarmType: record.alert_type,
+    time: formatClockTime(record.alert_time),
+    level: record.alert_level_label || t('alarmRecords.levels.critical'),
+    content: record.content || record.alert_type_label || '--',
+    status: record.status_label || getAlarmStatusLabel(record.status),
+    unconfirmed: record.status !== 'completed',
+    tone: getAlarmTone(record.alert_level),
+  }
+}
+
+function getAlarmTone(level: string): AlarmRow['tone'] {
+  const toneMap: Record<string, AlarmRow['tone']> = {
+    critical: 'red',
+    info: 'blue',
+    warning: 'yellow',
+  }
+
+  return toneMap[level] ?? 'red'
+}
+
+function getAlarmStatusLabel(status: string): string {
+  const statusKeyMap: Record<string, string> = {
+    completed: 'alarmRecords.statuses.completed',
+    pending: 'alarmRecords.statuses.unhandled',
+    processing: 'alarmRecords.statuses.processing',
+  }
+
+  return t(statusKeyMap[status] ?? 'alarmRecords.statuses.unhandled')
 }
 
 function getTaskStatusKey(status: TaskStatus): string {
@@ -628,11 +672,11 @@ onBeforeUnmount(() => {
               <h2>{{ t('dashboard.alarmPanel.title') }}</h2>
             </div>
             <el-tag type="danger" effect="plain" round>
-              {{ t('dashboard.alarmPanel.unconfirmedCount') }}
+              {{ t('dashboard.alarmPanel.unconfirmedCount', { count: openCriticalAlarmCount }) }}
             </el-tag>
           </header>
           <div class="alarm-panel__viewport">
-            <div class="alarm-panel__track">
+            <div v-if="alarms.length" class="alarm-panel__track">
               <div v-for="groupIndex in 3" :key="groupIndex" class="alarm-panel__group" :aria-hidden="groupIndex !== 1">
                 <button
                   v-for="alarm in alarms" :key="`${groupIndex}-${alarm.key}`" class="alarm-panel__row"
@@ -646,6 +690,9 @@ onBeforeUnmount(() => {
                   <em :class="alarm.unconfirmed ? 'text-red' : 'text-green'">{{ alarm.status }}</em>
                 </button>
               </div>
+            </div>
+            <div v-else class="alarm-panel__empty">
+              {{ t('dashboard.alarmPanel.empty') }}
             </div>
           </div>
         </section>
@@ -2167,6 +2214,16 @@ onBeforeUnmount(() => {
       font-weight: 700;
       text-align: right;
     }
+  }
+
+  &__empty {
+    display: grid;
+    height: 100%;
+    min-height: 108px;
+    place-items: center;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 700;
   }
 }
 

@@ -1,4 +1,4 @@
-import type { AlarmSource, DeviceDetailSource, DeviceStatusSource, GraspRecordSource, MetricSource, TaskSource } from './types'
+import type { DeviceDetailSource, DeviceStatusSource, GraspRecordSource, MetricSource, TaskSource } from './types'
 import binAImage from '@/assets/images/devices/bin-a.svg'
 import binBImage from '@/assets/images/devices/bin-b.svg'
 import binNgImage from '@/assets/images/devices/bin-ng.svg'
@@ -180,18 +180,6 @@ export const deviceDetailSources: DeviceDetailSource[] = [
       { key: 'bin-ng', nameKey: 'dashboard.devices.binNg.name', image: binNgImage, total: unavailableValue, loaded: unavailableValue, fillRate: 0, tone: 'red' },
     ],
   },
-]
-
-export const alarmSources: AlarmSource[] = [
-  { key: 'camera-connection-timeout', alarmType: 'cameraConnectionTimeout', time: '14:36:28', levelKey: 'dashboard.alarmLevels.alarm', contentKey: 'alarmRecords.types.cameraConnectionTimeout', statusKey: 'dashboard.alarmStatus.unconfirmed', unconfirmed: true, tone: 'red' },
-  { key: 'camera-recognition-error', alarmType: 'cameraRecognitionError', time: '14:28:16', levelKey: 'dashboard.alarmLevels.notice', contentKey: 'alarmRecords.types.cameraRecognitionError', statusKey: 'dashboard.alarmStatus.cleared', unconfirmed: false, tone: 'blue' },
-  { key: 'robot-connection-timeout', alarmType: 'robotConnectionTimeout', time: '14:21:37', levelKey: 'dashboard.alarmLevels.alarm', contentKey: 'alarmRecords.types.robotConnectionTimeout', statusKey: 'dashboard.alarmStatus.unconfirmed', unconfirmed: true, tone: 'red' },
-  { key: 'robot-error', alarmType: 'robotError', time: '14:09:58', levelKey: 'dashboard.alarmLevels.alarm', contentKey: 'alarmRecords.types.robotError', statusKey: 'dashboard.alarmStatus.confirmed', unconfirmed: false, tone: 'red' },
-  { key: 'gripper-grasp-error', alarmType: 'gripperGraspError', time: '13:56:04', levelKey: 'dashboard.alarmLevels.warning', contentKey: 'alarmRecords.types.gripperGraspError', statusKey: 'dashboard.alarmStatus.confirmed', unconfirmed: false, tone: 'yellow' },
-  { key: 'conveyor-error', alarmType: 'conveyorError', time: '13:42:31', levelKey: 'dashboard.alarmLevels.warning', contentKey: 'alarmRecords.types.conveyorError', statusKey: 'dashboard.alarmStatus.confirmed', unconfirmed: false, tone: 'yellow' },
-  { key: 'plc-connection-timeout', alarmType: 'plcConnectionTimeout', time: '13:35:22', levelKey: 'dashboard.alarmLevels.alarm', contentKey: 'alarmRecords.types.plcConnectionTimeout', statusKey: 'dashboard.alarmStatus.confirmed', unconfirmed: false, tone: 'red' },
-  { key: 'bin-capacity-warning', alarmType: 'binCapacityWarning', time: '13:23:31', levelKey: 'dashboard.alarmLevels.warning', contentKey: 'alarmRecords.types.binCapacityWarning', statusKey: 'dashboard.alarmStatus.cleared', unconfirmed: false, tone: 'yellow' },
-  { key: 'bin-capacity-full', alarmType: 'binCapacityFull', time: '13:08:53', levelKey: 'dashboard.alarmLevels.warning', contentKey: 'alarmRecords.types.binCapacityFull', statusKey: 'dashboard.alarmStatus.confirmed', unconfirmed: false, tone: 'yellow' },
 ]
 
 export const taskSources: TaskSource[] = []

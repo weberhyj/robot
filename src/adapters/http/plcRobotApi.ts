@@ -1,5 +1,16 @@
 import type { AlertEnumsResponse, AlertListQuery, AlertListResponse } from '@/entities/alarm/types'
-import type { BinStatus, CameraDetectionResult, CameraStatus, CameraStreamQuery, GripperControlResponse, GripperStatus, PlcStatus } from '@/entities/device/types'
+import type {
+  BinCreatePayload,
+  BinEnumsResponse,
+  BinStatus,
+  BinUpdatePayload,
+  CameraDetectionResult,
+  CameraStatus,
+  CameraStreamQuery,
+  GripperControlResponse,
+  GripperStatus,
+  PlcStatus,
+} from '@/entities/device/types'
 import type { RobotStatus } from '@/entities/robot/types'
 import type { GraspRecordListResponse, GraspRecordQuery, GraspRecordStatistics, TaskListQuery, TaskListResponse } from '@/entities/task/types'
 
@@ -49,6 +60,30 @@ export function buildCameraStreamUrl(query: CameraStreamQuery = {}): string {
 
 export async function fetchBins(): Promise<BinStatus[]> {
   return requestJson<BinStatus[]>('/api/v1/bin')
+}
+
+export async function fetchBinEnums(): Promise<BinEnumsResponse> {
+  return requestJson<BinEnumsResponse>('/api/v1/bin/enums')
+}
+
+export async function createBin(payload: BinCreatePayload): Promise<BinStatus> {
+  return requestJson<BinStatus>('/api/v1/bin', {
+    body: JSON.stringify(payload),
+    method: 'POST',
+  })
+}
+
+export async function updateBin(binId: number, payload: BinUpdatePayload): Promise<BinStatus> {
+  return requestJson<BinStatus>(`/api/v1/bin/${binId}`, {
+    body: JSON.stringify(payload),
+    method: 'PUT',
+  })
+}
+
+export async function deleteBin(binId: number): Promise<void> {
+  await requestVoid(`/api/v1/bin/${binId}`, {
+    method: 'DELETE',
+  })
 }
 
 export async function fetchTaskPage(query: TaskListQuery = {}): Promise<TaskListResponse> {
@@ -112,14 +147,12 @@ function resolveDirectApiBaseUrl(): string {
   return fallbackApiBaseUrl
 }
 
-async function requestJson<TData>(path: string): Promise<TData> {
+async function requestJson<TData>(path: string, init: RequestInit = {}): Promise<TData> {
   const controller = new AbortController()
   const timeoutId = globalThis.setTimeout(() => controller.abort(), requestTimeoutMs)
 
   try {
-    const response = await fetch(await buildApiUrl(path), {
-      signal: controller.signal,
-    })
+    const response = await fetch(await buildApiUrl(path), buildRequestInit(init, controller.signal))
 
     if (!response.ok) {
       throw new Error(`Request failed: ${response.status} ${response.statusText}`)
@@ -129,6 +162,40 @@ async function requestJson<TData>(path: string): Promise<TData> {
   }
   finally {
     globalThis.clearTimeout(timeoutId)
+  }
+}
+
+async function requestVoid(path: string, init: RequestInit = {}): Promise<void> {
+  const controller = new AbortController()
+  const timeoutId = globalThis.setTimeout(() => controller.abort(), requestTimeoutMs)
+
+  try {
+    const response = await fetch(await buildApiUrl(path), buildRequestInit(init, controller.signal))
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status} ${response.statusText}`)
+    }
+  }
+  finally {
+    globalThis.clearTimeout(timeoutId)
+  }
+}
+
+function buildRequestInit(init: RequestInit, signal: AbortSignal): RequestInit {
+  if (!init.body) {
+    return {
+      ...init,
+      signal,
+    }
+  }
+
+  return {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...init.headers,
+    },
+    signal,
   }
 }
 

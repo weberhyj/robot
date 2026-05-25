@@ -46,9 +46,44 @@ export interface CameraStreamQuery {
 export interface BinStatus {
   id: number
   name: string
+  bin_type: string
+  material_type: string | null
   total_capacity: number
   current_load: number
   fill_rate: number
+  length: number
+  width: number
+  height: number
+  position_x: number
+  position_y: number
+  is_calibrated: boolean
   created_at: string | null
   updated_at: string | null
 }
+
+export interface BinEnumOption {
+  value: string
+  label: string
+}
+
+export interface BinEnumsResponse {
+  bin_types: BinEnumOption[]
+  material_types: BinEnumOption[]
+}
+
+export interface BinCreatePayload {
+  name: string
+  bin_type: string
+  material_type?: string | null
+  total_capacity?: number
+  current_load?: number
+  fill_rate?: number
+  length?: number
+  width?: number
+  height?: number
+  position_x?: number
+  position_y?: number
+  is_calibrated?: boolean
+}
+
+export type BinUpdatePayload = Partial<BinCreatePayload>

@@ -12,4 +12,15 @@ export {
   stopConveyorSoftly,
 } from './plcRobotService'
 export { checkAppUpdate, downloadAndInstallAppUpdate, relaunchApp } from './updateService'
-export { fetchAlertEnums, fetchAlertPage, fetchGraspRecordStatistics, fetchTaskGraspRecords, fetchTaskPage } from '@/adapters/http/plcRobotApi'
+export {
+  createBin,
+  deleteBin,
+  fetchAlertEnums,
+  fetchAlertPage,
+  fetchBinEnums,
+  fetchBins,
+  fetchGraspRecordStatistics,
+  fetchTaskGraspRecords,
+  fetchTaskPage,
+  updateBin,
+} from '@/adapters/http/plcRobotApi'

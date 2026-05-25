@@ -1,25 +1,39 @@
 <script setup lang="ts">
-import type { BinParameterItem, ChangeRecordItem, ParameterDeviceKey } from './types'
-import { Box, InfoFilled, Minus, Plus, RefreshRight, WarningFilled } from '@element-plus/icons-vue'
+import type { ChangeRecordItem, ParameterDeviceKey } from './types'
+import { Box, Delete, InfoFilled, Minus, Plus, RefreshRight, WarningFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { computed, reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   binChangeRecordItems,
-  binParameterItems,
   changeRecordItems,
-  defaultBinParameterForm,
   defaultParameterForm,
   instructionItems,
   parameterDeviceItems,
   speedPresetItems,
 } from './data'
+import { useBinParameterConfig } from './useBinParameterConfig'
 
 const { t } = useI18n()
 
 const activeDevice = shallowRef<ParameterDeviceKey>('robot')
 const parameterForm = reactive({ ...defaultParameterForm })
-const binParameterForm = reactive({ ...defaultBinParameterForm })
+const {
+  addBinPlaceholder,
+  binDeletingId,
+  binEnumsLoading,
+  binListLoading,
+  binParameterForm,
+  binSaving,
+  confirmDeleteBin,
+  displayedBinItems,
+  resetBinCapacityRules,
+  resetBinParameterForm,
+  resolvedBinTypeOptions,
+  resolvedMaterialTypeOptions,
+  saveBinParameters,
+  selectBin,
+} = useBinParameterConfig()
 
 const activeDeviceItem = computed(() => {
   return parameterDeviceItems.find(item => item.key === activeDevice.value) ?? parameterDeviceItems[0]
@@ -29,21 +43,6 @@ const changeRecordRows = computed<ChangeRecordItem[]>(() => activeDevice.value =
 
 function selectDevice(device: ParameterDeviceKey): void {
   activeDevice.value = device
-}
-
-function selectBin(bin: BinParameterItem): void {
-  Object.assign(binParameterForm, {
-    activeBinKey: bin.key,
-    code: bin.code,
-    type: bin.type,
-    materialType: bin.materialType,
-    maxCapacity: bin.maxCapacity,
-    sizeX: bin.sizeX,
-    sizeY: bin.sizeY,
-    sizeZ: bin.sizeZ,
-    positionX: bin.positionX,
-    positionY: bin.positionY,
-  })
 }
 
 function setRobotSpeed(value: number): void {
@@ -61,27 +60,20 @@ function getPresetDashArray(value: number): string {
 
 function resetParameterDraft(): void {
   Object.assign(parameterForm, defaultParameterForm)
-  Object.assign(binParameterForm, defaultBinParameterForm)
+  resetBinParameterForm()
   ElMessage.success(t('parameters.messages.reset'))
-}
-
-function addBinPlaceholder(): void {
-  ElMessage.info(t('parameters.binConfig.messages.addMock'))
-}
-
-function resetBinCapacityRules(): void {
-  Object.assign(binParameterForm, {
-    warningThreshold: defaultBinParameterForm.warningThreshold,
-    warningLevel: defaultBinParameterForm.warningLevel,
-  })
-  ElMessage.success(t('parameters.binConfig.messages.capacityReset'))
 }
 
 function saveParameterDraft(): void {
   ElMessage.success(t('parameters.messages.saveDraft'))
 }
 
-function applyParameters(): void {
+async function applyParameters(): Promise<void> {
+  if (activeDevice.value === 'bins') {
+    await saveBinParameters()
+    return
+  }
+
   ElMessage.success(t('parameters.messages.apply'))
 }
 </script>
@@ -103,7 +95,7 @@ function applyParameters(): void {
             <el-button size="small" type="primary" plain @click="saveParameterDraft">
               {{ t('parameters.actions.saveDraft') }}
             </el-button>
-            <el-button size="small" type="primary" @click="applyParameters">
+            <el-button size="small" type="primary" :loading="activeDevice === 'bins' && binSaving" @click="applyParameters">
               {{ t('parameters.actions.apply') }}
             </el-button>
           </div>
@@ -221,31 +213,49 @@ function applyParameters(): void {
         </header>
 
         <div class="bin-config-panel__layout">
-          <aside class="bin-config-panel__section bin-config-panel__list">
+          <aside v-loading="binListLoading" class="bin-config-panel__section bin-config-panel__list">
             <div class="bin-config-panel__section-header">
               <h3>{{ t('parameters.binConfig.listTitle') }}</h3>
-              <el-button size="small" :icon="Plus" @click="addBinPlaceholder">
+              <el-button size="small" :icon="Plus" :disabled="binSaving" @click="addBinPlaceholder">
                 {{ t('parameters.binConfig.addBin') }}
               </el-button>
             </div>
 
-            <button
-              v-for="bin in binParameterItems"
+            <div
+              v-for="bin in displayedBinItems"
               :key="bin.key"
               class="bin-config-panel__bin-item"
               :class="[`is-${bin.tone}`, { 'is-active': binParameterForm.activeBinKey === bin.key }]"
-              type="button"
+              role="button"
+              tabindex="0"
               :aria-pressed="binParameterForm.activeBinKey === bin.key"
               @click="selectBin(bin)"
+              @keydown.enter.prevent="selectBin(bin)"
+              @keydown.space.prevent="selectBin(bin)"
             >
               <img :src="bin.image" :alt="bin.code">
               <span>
                 <strong>{{ bin.code }}</strong>
-                <small>{{ t(bin.calibrationKey) }}</small>
+                <small>{{ bin.calibrationLabel }}</small>
               </span>
-              <em>{{ t(bin.typeKey) }}</em>
+              <em>{{ bin.typeLabel }}</em>
               <b aria-hidden="true">&gt;</b>
-            </button>
+              <el-button
+                class="bin-config-panel__delete"
+                size="small"
+                text
+                type="danger"
+                :icon="Delete"
+                :aria-label="t('parameters.binConfig.deleteBin')"
+                :disabled="!bin.id || binSaving"
+                :loading="binDeletingId === bin.id"
+                @click.stop="confirmDeleteBin(bin)"
+              />
+            </div>
+
+            <p v-if="displayedBinItems.length === 0" class="bin-config-panel__empty">
+              {{ t('parameters.binConfig.empty') }}
+            </p>
           </aside>
 
           <section class="bin-config-panel__section bin-config-panel__basic">
@@ -260,9 +270,13 @@ function applyParameters(): void {
               </label>
               <label class="bin-config-panel__field">
                 <span>{{ t('parameters.binConfig.fields.type') }}</span>
-                <el-select v-model="binParameterForm.type" size="small">
-                  <el-option :label="t('parameters.binConfig.types.ok')" value="ok" />
-                  <el-option :label="t('parameters.binConfig.types.ng')" value="ng" />
+                <el-select v-model="binParameterForm.type" size="small" :loading="binEnumsLoading">
+                  <el-option
+                    v-for="option in resolvedBinTypeOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
                 </el-select>
               </label>
               <label class="bin-config-panel__field">
@@ -274,10 +288,13 @@ function applyParameters(): void {
               </label>
               <label class="bin-config-panel__field">
                 <span>{{ t('parameters.binConfig.fields.materialType') }}</span>
-                <el-select v-model="binParameterForm.materialType" size="small">
-                  <el-option :label="t('parameters.binConfig.materialTypes.ok01')" value="ok01" />
-                  <el-option :label="t('parameters.binConfig.materialTypes.ok02')" value="ok02" />
-                  <el-option :label="t('parameters.binConfig.materialTypes.ng01')" value="ng01" />
+                <el-select v-model="binParameterForm.materialType" size="small" :loading="binEnumsLoading">
+                  <el-option
+                    v-for="option in resolvedMaterialTypeOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                  />
                 </el-select>
               </label>
             </div>
@@ -823,13 +840,14 @@ function applyParameters(): void {
   &__bin-item {
     display: grid;
     min-height: 82px;
-    grid-template-columns: 58px minmax(0, 1fr) auto 14px;
+    grid-template-columns: 58px minmax(0, 1fr) auto 14px 28px;
     align-items: center;
     gap: 12px;
     border: 1px solid #e1e9f4;
     border-radius: 8px;
     background: #fff;
     color: #223047;
+    cursor: pointer;
     padding: 10px 12px;
     text-align: left;
     transition:
@@ -916,6 +934,30 @@ function applyParameters(): void {
       font-weight: 500;
       line-height: 1;
     }
+  }
+
+  &__delete {
+    justify-self: end;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    margin-left: 0;
+
+    :deep(.el-icon) {
+      color: #ef4444;
+    }
+  }
+
+  &__empty {
+    display: grid;
+    min-height: 82px;
+    place-items: center;
+    border: 1px dashed #d8e2ee;
+    border-radius: 8px;
+    color: #7b8ca2;
+    font-size: 13px;
+    font-weight: 800;
+    margin: 0;
   }
 
   &__form-grid {
@@ -1308,7 +1350,7 @@ function applyParameters(): void {
 
     &__bin-item {
       min-height: 74px;
-      grid-template-columns: 46px minmax(0, 1fr) auto 12px;
+      grid-template-columns: 46px minmax(0, 1fr) auto 12px 26px;
       gap: 10px;
       padding: 9px 10px;
 
@@ -1329,6 +1371,11 @@ function applyParameters(): void {
       em {
         padding: 5px 7px;
       }
+    }
+
+    &__delete {
+      width: 26px;
+      height: 26px;
     }
 
     &__form-grid {

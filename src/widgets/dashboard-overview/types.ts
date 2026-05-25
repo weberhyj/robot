@@ -1,5 +1,3 @@
-import type { AlarmType } from '@/shared/types/alarm'
-
 export interface MetricItem {
   key: string
   label: string
@@ -78,7 +76,7 @@ export interface BinCapacitySource {
 
 export interface AlarmRow {
   key: string
-  alarmType: AlarmType
+  alarmType: string
   time: string
   level: string
   content: string
@@ -149,17 +147,6 @@ export interface DeviceStatusDetailSource {
 }
 
 type StatusTone = 'green' | 'blue' | 'yellow' | 'red' | 'gray'
-
-export interface AlarmSource {
-  key: string
-  alarmType: AlarmType
-  time: string
-  levelKey: string
-  contentKey: string
-  statusKey: string
-  unconfirmed: boolean
-  tone: 'green' | 'blue' | 'yellow' | 'red'
-}
 
 export interface TaskSource {
   id: number
