@@ -643,6 +643,9 @@ export default {
         deleteConfirm: 'Delete {name}? This cannot be undone.',
         deleteFailed: 'Failed to delete bin. Please check the API service.',
         capacityReset: 'Capacity detection thresholds restored',
+        capacityResetFailed: 'Failed to restore capacity detection parameters. Please check the API service.',
+        capacityResetRemark: 'Restore defaults',
+        capacityUpdateRemark: 'Update bin capacity detection from parameter configuration page',
       },
     },
     instructions: {
@@ -662,6 +665,7 @@ export default {
         operator: 'Operator',
         remark: 'Remark',
       },
+      total: '{total} total',
       items: {
         robotSpeed: 'Robot Arm Running Speed',
         capacityWarningThreshold: 'Capacity Warning Threshold',

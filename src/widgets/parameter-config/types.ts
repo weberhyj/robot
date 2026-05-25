@@ -18,11 +18,14 @@ export interface InstructionItem {
 export interface ChangeRecordItem {
   key: string
   parameterKey: string
+  parameterLabel?: string
   originalValue: string
   currentValue: string
   changedAt: string
   operatorKey: string
+  operatorLabel?: string
   remarkKey: string
+  remarkLabel?: string
 }
 
 export type BinParameterKey = string

@@ -12,6 +12,13 @@ import type {
   PlcStatus,
 } from '@/entities/device/types'
 import type { RobotStatus } from '@/entities/robot/types'
+import type {
+  BinCapacitySetting,
+  BinCapacitySettingResetQuery,
+  BinCapacitySettingUpdatePayload,
+  SettingHistoryListResponse,
+  SettingHistoryQuery,
+} from '@/entities/setting/types'
 import type { GraspRecordListResponse, GraspRecordQuery, GraspRecordStatistics, TaskListQuery, TaskListResponse } from '@/entities/task/types'
 
 const fallbackApiBaseUrl = 'http://127.0.0.1:8080'
@@ -84,6 +91,27 @@ export async function deleteBin(binId: number): Promise<void> {
   await requestVoid(`/api/v1/bin/${binId}`, {
     method: 'DELETE',
   })
+}
+
+export async function fetchBinCapacitySetting(): Promise<BinCapacitySetting> {
+  return requestJson<BinCapacitySetting>('/api/v1/setting/bin_capacity')
+}
+
+export async function updateBinCapacitySetting(payload: BinCapacitySettingUpdatePayload): Promise<BinCapacitySetting> {
+  return requestJson<BinCapacitySetting>('/api/v1/setting/bin_capacity', {
+    body: JSON.stringify(payload),
+    method: 'PUT',
+  })
+}
+
+export async function resetBinCapacitySetting(query: BinCapacitySettingResetQuery = {}): Promise<BinCapacitySetting> {
+  return requestJson<BinCapacitySetting>(buildQueryPath('/api/v1/setting/bin_capacity/reset', query), {
+    method: 'POST',
+  })
+}
+
+export async function fetchSettingHistoryPage(query: SettingHistoryQuery = {}): Promise<SettingHistoryListResponse> {
+  return requestJson<SettingHistoryListResponse>(buildQueryPath('/api/v1/setting/history', query))
 }
 
 export async function fetchTaskPage(query: TaskListQuery = {}): Promise<TaskListResponse> {

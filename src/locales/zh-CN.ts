@@ -643,6 +643,9 @@ export default {
         deleteConfirm: '确认删除 {name} 吗？删除后不可恢复。',
         deleteFailed: '料箱删除失败，请检查接口服务',
         capacityReset: '容量检测阈值已恢复默认',
+        capacityResetFailed: '容量检测参数恢复失败，请检查接口服务',
+        capacityResetRemark: '恢复默认参数',
+        capacityUpdateRemark: '参数配置页面更新料箱容量检测',
       },
     },
     instructions: {
@@ -662,6 +665,7 @@ export default {
         operator: '修改人',
         remark: '备注',
       },
+      total: '共 {total} 条',
       items: {
         robotSpeed: '机械臂运行速度',
         capacityWarningThreshold: '容量预警阈值',

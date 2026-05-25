@@ -1,11 +1,25 @@
-import type { BinParameterItem } from './types'
+import type { BinParameterItem, ChangeRecordItem } from './types'
 import type { BinCreatePayload, BinEnumOption, BinStatus, BinUpdatePayload } from '@/entities/device/types'
+import type { BinCapacitySetting, BinCapacitySettingUpdatePayload, SettingHistoryRecord } from '@/entities/setting/types'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, reactive, shallowRef } from 'vue'
+import { computed, onMounted, reactive, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createBin, deleteBin, fetchBinEnums, fetchBins, updateBin } from '@/services'
+import {
+  createBin,
+  deleteBin,
+  fetchBinCapacitySetting,
+  fetchBinEnums,
+  fetchBins,
+  fetchSettingHistoryPage,
+  resetBinCapacitySetting,
+  updateBin,
+  updateBinCapacitySetting,
+} from '@/services'
+import { useAppStore } from '@/stores/appStore'
 import { binParameterItems, defaultBinParameterForm } from './data'
 
+const binCapacitySettingKey = 'bin_capacity_alert'
+const changeRecordPageSizeOptions = [10, 20, 50]
 const fallbackMaterialTypeOptions: BinEnumOption[] = [
   { value: 'orange', label: 'orange' },
   { value: 'box', label: 'box' },
@@ -14,6 +28,7 @@ const fallbackMaterialTypeOptions: BinEnumOption[] = [
 
 export function useBinParameterConfig() {
   const { t } = useI18n()
+  const appStore = useAppStore()
 
   const binParameterForm = reactive({ ...defaultBinParameterForm })
   const binItems = shallowRef<BinParameterItem[]>([])
@@ -25,6 +40,14 @@ export function useBinParameterConfig() {
   const binEnumsLoading = shallowRef(false)
   const binSaving = shallowRef(false)
   const binDeletingId = shallowRef<number>()
+  const capacityLoading = shallowRef(false)
+  const capacitySaving = shallowRef(false)
+  const binChangeRecordRows = shallowRef<ChangeRecordItem[]>([])
+  const changeRecordLoading = shallowRef(false)
+  const changeRecordCurrentPage = shallowRef(1)
+  const changeRecordPageSize = shallowRef(10)
+  const changeRecordTotal = shallowRef(0)
+  let changeRecordRefreshToken = 0
 
   const fallbackBinTypeOptions = computed<BinEnumOption[]>(() => [
     { value: 'ok', label: t('parameters.binConfig.types.ok') },
@@ -59,6 +82,10 @@ export function useBinParameterConfig() {
     void initializeBinConfig()
   })
 
+  watch([changeRecordCurrentPage, changeRecordPageSize], () => {
+    void refreshSettingHistory()
+  })
+
   function selectBin(bin: BinParameterItem): void {
     Object.assign(binParameterForm, {
       activeBinKey: bin.key,
@@ -83,12 +110,28 @@ export function useBinParameterConfig() {
     ElMessage.info(t('parameters.binConfig.messages.newDraft'))
   }
 
-  function resetBinCapacityRules(): void {
-    Object.assign(binParameterForm, {
-      warningThreshold: defaultBinParameterForm.warningThreshold,
-      warningLevel: defaultBinParameterForm.warningLevel,
-    })
-    ElMessage.success(t('parameters.binConfig.messages.capacityReset'))
+  async function resetBinCapacityRules(): Promise<void> {
+    if (capacitySaving.value)
+      return
+
+    capacitySaving.value = true
+
+    try {
+      const setting = await resetBinCapacitySetting({
+        operator: appStore.userName,
+        remark: t('parameters.binConfig.messages.capacityResetRemark'),
+      })
+      applyCapacitySetting(setting)
+      ElMessage.success(t('parameters.binConfig.messages.capacityReset'))
+      await refreshFirstSettingHistoryPage()
+    }
+    catch (error) {
+      console.error('[parameter-config] failed to reset bin capacity setting', error)
+      ElMessage.error(t('parameters.binConfig.messages.capacityResetFailed'))
+    }
+    finally {
+      capacitySaving.value = false
+    }
   }
 
   function resetBinParameterForm(): void {
@@ -97,7 +140,7 @@ export function useBinParameterConfig() {
   }
 
   async function saveBinParameters(): Promise<void> {
-    if (binSaving.value)
+    if (binSaving.value || capacitySaving.value)
       return
 
     if (!binParameterForm.code.trim()) {
@@ -111,6 +154,7 @@ export function useBinParameterConfig() {
     }
 
     binSaving.value = true
+    capacitySaving.value = true
 
     try {
       const binId = binParameterForm.id
@@ -119,8 +163,10 @@ export function useBinParameterConfig() {
         ? await createBin(buildBinCreatePayload())
         : await updateBin(binId, buildBinUpdatePayload())
 
+      await updateBinCapacitySetting(buildCapacitySettingPayload())
       ElMessage.success(t(isCreate ? 'parameters.binConfig.messages.created' : 'parameters.binConfig.messages.updated'))
       await refreshBins(savedBin.id)
+      await refreshFirstSettingHistoryPage()
     }
     catch (error) {
       console.error('[parameter-config] failed to save bin', error)
@@ -128,6 +174,7 @@ export function useBinParameterConfig() {
     }
     finally {
       binSaving.value = false
+      capacitySaving.value = false
     }
   }
 
@@ -171,8 +218,12 @@ export function useBinParameterConfig() {
   }
 
   async function initializeBinConfig(): Promise<void> {
-    await refreshBinEnums()
-    await refreshBins()
+    await Promise.all([
+      refreshBinEnums(),
+      refreshBins(),
+      refreshCapacitySetting(),
+      refreshSettingHistory(),
+    ])
   }
 
   async function refreshBinEnums(): Promise<void> {
@@ -191,6 +242,61 @@ export function useBinParameterConfig() {
     finally {
       binEnumsLoading.value = false
     }
+  }
+
+  async function refreshCapacitySetting(): Promise<void> {
+    capacityLoading.value = true
+
+    try {
+      const setting = await fetchBinCapacitySetting()
+      applyCapacitySetting(setting)
+    }
+    catch (error) {
+      console.error('[parameter-config] failed to fetch bin capacity setting', error)
+    }
+    finally {
+      capacityLoading.value = false
+    }
+  }
+
+  async function refreshSettingHistory(): Promise<void> {
+    const refreshToken = ++changeRecordRefreshToken
+    changeRecordLoading.value = true
+
+    try {
+      const response = await fetchSettingHistoryPage({
+        page: changeRecordCurrentPage.value,
+        page_size: changeRecordPageSize.value,
+        setting_key: binCapacitySettingKey,
+      })
+
+      if (refreshToken !== changeRecordRefreshToken)
+        return
+
+      binChangeRecordRows.value = response.items.map(mapSettingHistoryToChangeRecord)
+      changeRecordTotal.value = response.total
+    }
+    catch (error) {
+      if (refreshToken !== changeRecordRefreshToken)
+        return
+
+      console.error('[parameter-config] failed to fetch setting history', error)
+      binChangeRecordRows.value = []
+      changeRecordTotal.value = 0
+    }
+    finally {
+      if (refreshToken === changeRecordRefreshToken)
+        changeRecordLoading.value = false
+    }
+  }
+
+  async function refreshFirstSettingHistoryPage(): Promise<void> {
+    if (changeRecordCurrentPage.value === 1) {
+      await refreshSettingHistory()
+      return
+    }
+
+    changeRecordCurrentPage.value = 1
   }
 
   async function refreshBins(preferredBinId?: number): Promise<void> {
@@ -250,6 +356,16 @@ export function useBinParameterConfig() {
     return `${prefix}_${String(count).padStart(2, '0')}`
   }
 
+  function buildCapacitySettingPayload(): BinCapacitySettingUpdatePayload {
+    return {
+      alert_level: binParameterForm.warningLevel,
+      enabled: binParameterForm.capacityDetectionEnabled,
+      operator: appStore.userName,
+      remark: t('parameters.binConfig.messages.capacityUpdateRemark'),
+      threshold_percent: normalizeNumber(binParameterForm.warningThreshold),
+    }
+  }
+
   function buildBinCreatePayload(): BinCreatePayload {
     const payload = buildBinUpdatePayload()
 
@@ -265,6 +381,29 @@ export function useBinParameterConfig() {
       position_y: payload.position_y,
       total_capacity: payload.total_capacity,
       width: payload.width,
+    }
+  }
+
+  function applyCapacitySetting(setting: BinCapacitySetting): void {
+    Object.assign(binParameterForm, {
+      capacityDetectionEnabled: setting.enabled,
+      warningLevel: setting.alert_level,
+      warningThreshold: normalizePercent(setting.threshold_percent),
+    })
+  }
+
+  function mapSettingHistoryToChangeRecord(record: SettingHistoryRecord): ChangeRecordItem {
+    return {
+      key: String(record.id),
+      parameterKey: '',
+      parameterLabel: record.setting_label || record.setting_key,
+      originalValue: getDisplayText(record.old_value),
+      currentValue: getDisplayText(record.new_value),
+      changedAt: formatDateTime(record.changed_at),
+      operatorKey: '',
+      operatorLabel: getDisplayText(record.operator),
+      remarkKey: '',
+      remarkLabel: getDisplayText(record.remark),
     }
   }
 
@@ -361,13 +500,33 @@ export function useBinParameterConfig() {
     return Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0
   }
 
+  function normalizePercent(value: number): number {
+    return Math.min(100, normalizeNumber(value))
+  }
+
+  function getDisplayText(value: string | null | undefined): string {
+    return value?.trim() || '--'
+  }
+
+  function formatDateTime(value: string | null | undefined): string {
+    return value ? value.replace('T', ' ') : '--'
+  }
+
   return {
     addBinPlaceholder,
+    binChangeRecordRows,
     binDeletingId,
     binEnumsLoading,
     binListLoading,
     binParameterForm,
     binSaving,
+    capacityLoading,
+    capacitySaving,
+    changeRecordCurrentPage,
+    changeRecordLoading,
+    changeRecordPageSize,
+    changeRecordPageSizeOptions,
+    changeRecordTotal,
     confirmDeleteBin,
     displayedBinItems,
     resetBinCapacityRules,

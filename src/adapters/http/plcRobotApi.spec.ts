@@ -5,11 +5,15 @@ import {
   deleteBin,
   fetchAlertEnums,
   fetchAlertPage,
+  fetchBinCapacitySetting,
   fetchBinEnums,
+  fetchSettingHistoryPage,
+  resetBinCapacitySetting,
   sendGripperClose,
   sendGripperOpen,
   triggerCameraDetection,
   updateBin,
+  updateBinCapacitySetting,
 } from './plcRobotApi'
 
 const fetchMock = vi.fn()
@@ -224,6 +228,100 @@ describe('plc robot HTTP API adapter', () => {
       method: 'DELETE',
       signal: expect.any(AbortSignal),
     })
+  })
+
+  it('fetches bin capacity setting', async () => {
+    vi.stubGlobal('window', { location: { protocol: 'http:' } })
+    vi.stubGlobal('fetch', fetchMock)
+    fetchMock.mockResolvedValue(createJsonResponse({
+      enabled: true,
+      threshold_percent: 79,
+      alert_level: 'warning',
+    }))
+
+    await expect(fetchBinCapacitySetting()).resolves.toMatchObject({
+      enabled: true,
+      threshold_percent: 79,
+    })
+
+    expectFetchCalledWith('/api/v1/setting/bin_capacity')
+  })
+
+  it('updates bin capacity setting with JSON payload', async () => {
+    vi.stubGlobal('window', { location: { protocol: 'http:' } })
+    vi.stubGlobal('fetch', fetchMock)
+    fetchMock.mockResolvedValue(createJsonResponse({
+      enabled: false,
+      threshold_percent: 80,
+      alert_level: 'critical',
+    }))
+
+    await expect(updateBinCapacitySetting({
+      alert_level: 'critical',
+      enabled: false,
+      operator: 'admin',
+      threshold_percent: 80,
+    })).resolves.toMatchObject({
+      enabled: false,
+      alert_level: 'critical',
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/setting/bin_capacity', {
+      body: JSON.stringify({
+        alert_level: 'critical',
+        enabled: false,
+        operator: 'admin',
+        threshold_percent: 80,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'PUT',
+      signal: expect.any(AbortSignal),
+    })
+  })
+
+  it('resets bin capacity setting with operator query', async () => {
+    vi.stubGlobal('window', { location: { protocol: 'http:' } })
+    vi.stubGlobal('fetch', fetchMock)
+    fetchMock.mockResolvedValue(createJsonResponse({
+      enabled: true,
+      threshold_percent: 80,
+      alert_level: 'warning',
+    }))
+
+    await expect(resetBinCapacitySetting({ operator: 'admin', remark: '恢复默认参数' })).resolves.toMatchObject({
+      enabled: true,
+      threshold_percent: 80,
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/setting/bin_capacity/reset?operator=admin&remark=%E6%81%A2%E5%A4%8D%E9%BB%98%E8%AE%A4%E5%8F%82%E6%95%B0', {
+      method: 'POST',
+      signal: expect.any(AbortSignal),
+    })
+  })
+
+  it('fetches a filtered setting history page', async () => {
+    vi.stubGlobal('window', { location: { protocol: 'http:' } })
+    vi.stubGlobal('fetch', fetchMock)
+    fetchMock.mockResolvedValue(createJsonResponse({
+      total: 1,
+      page: 2,
+      page_size: 10,
+      total_pages: 3,
+      items: [],
+    }))
+
+    await expect(fetchSettingHistoryPage({
+      page: 2,
+      page_size: 10,
+      setting_key: 'bin_capacity_alert',
+    })).resolves.toMatchObject({
+      page: 2,
+      total: 1,
+    })
+
+    expectFetchCalledWith('/api/v1/setting/history?page=2&page_size=10&setting_key=bin_capacity_alert')
   })
 })
 

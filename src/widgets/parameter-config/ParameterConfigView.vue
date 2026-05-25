@@ -5,7 +5,6 @@ import { ElMessage } from 'element-plus'
 import { computed, reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  binChangeRecordItems,
   changeRecordItems,
   defaultParameterForm,
   instructionItems,
@@ -20,11 +19,19 @@ const activeDevice = shallowRef<ParameterDeviceKey>('robot')
 const parameterForm = reactive({ ...defaultParameterForm })
 const {
   addBinPlaceholder,
+  binChangeRecordRows,
   binDeletingId,
   binEnumsLoading,
   binListLoading,
   binParameterForm,
   binSaving,
+  capacityLoading,
+  capacitySaving,
+  changeRecordCurrentPage,
+  changeRecordLoading,
+  changeRecordPageSize,
+  changeRecordPageSizeOptions,
+  changeRecordTotal,
   confirmDeleteBin,
   displayedBinItems,
   resetBinCapacityRules,
@@ -39,7 +46,11 @@ const activeDeviceItem = computed(() => {
   return parameterDeviceItems.find(item => item.key === activeDevice.value) ?? parameterDeviceItems[0]
 })
 
-const changeRecordRows = computed<ChangeRecordItem[]>(() => activeDevice.value === 'bins' ? binChangeRecordItems : changeRecordItems)
+const changeRecordRows = computed<ChangeRecordItem[]>(() => activeDevice.value === 'bins' ? binChangeRecordRows.value : changeRecordItems)
+
+const changeRecordTableLoading = computed(() => activeDevice.value === 'bins' && changeRecordLoading.value)
+
+const isCapacityDisabled = computed(() => capacityLoading.value || capacitySaving.value || !binParameterForm.capacityDetectionEnabled)
 
 function selectDevice(device: ParameterDeviceKey): void {
   activeDevice.value = device
@@ -95,7 +106,7 @@ async function applyParameters(): Promise<void> {
             <el-button size="small" type="primary" plain @click="saveParameterDraft">
               {{ t('parameters.actions.saveDraft') }}
             </el-button>
-            <el-button size="small" type="primary" :loading="activeDevice === 'bins' && binSaving" @click="applyParameters">
+            <el-button size="small" type="primary" :loading="activeDevice === 'bins' && (binSaving || capacitySaving)" @click="applyParameters">
               {{ t('parameters.actions.apply') }}
             </el-button>
           </div>
@@ -343,7 +354,7 @@ async function applyParameters(): Promise<void> {
             </div>
           </section>
 
-          <section class="bin-config-panel__section bin-config-panel__capacity">
+          <section v-loading="capacityLoading" class="bin-config-panel__section bin-config-panel__capacity">
             <div class="bin-config-panel__section-header">
               <h3>
                 <el-icon :size="17">
@@ -353,7 +364,7 @@ async function applyParameters(): Promise<void> {
               </h3>
               <label class="bin-config-panel__switch">
                 <span>{{ t('parameters.binConfig.enableDetection') }}</span>
-                <el-switch v-model="binParameterForm.capacityDetectionEnabled" size="small" />
+                <el-switch v-model="binParameterForm.capacityDetectionEnabled" size="small" :disabled="capacitySaving" />
               </label>
             </div>
 
@@ -372,7 +383,7 @@ async function applyParameters(): Promise<void> {
                     <small>{{ t('parameters.binConfig.thresholds.setting') }}</small>
                     <el-slider
                       v-model="binParameterForm.warningThreshold"
-                      :disabled="!binParameterForm.capacityDetectionEnabled"
+                      :disabled="isCapacityDisabled"
                       :min="0"
                       :max="100"
                       :show-tooltip="false"
@@ -381,7 +392,7 @@ async function applyParameters(): Promise<void> {
                   </div>
                   <label>
                     <span>{{ t('parameters.binConfig.thresholds.value') }}</span>
-                    <el-select v-model="binParameterForm.warningThreshold" size="small" :disabled="!binParameterForm.capacityDetectionEnabled">
+                    <el-select v-model="binParameterForm.warningThreshold" size="small" :disabled="isCapacityDisabled">
                       <el-option label="70%" :value="70" />
                       <el-option label="79%" :value="79" />
                       <el-option label="80%" :value="80" />
@@ -390,7 +401,8 @@ async function applyParameters(): Promise<void> {
                   </label>
                   <label>
                     <span>{{ t('parameters.binConfig.thresholds.level') }}</span>
-                    <el-select v-model="binParameterForm.warningLevel" size="small" :disabled="!binParameterForm.capacityDetectionEnabled">
+                    <el-select v-model="binParameterForm.warningLevel" size="small" :disabled="isCapacityDisabled">
+                      <el-option :label="t('parameters.binConfig.levels.critical')" value="critical" />
                       <el-option :label="t('parameters.binConfig.levels.warning')" value="warning" />
                       <el-option :label="t('parameters.binConfig.levels.info')" value="info" />
                     </el-select>
@@ -406,7 +418,7 @@ async function applyParameters(): Promise<void> {
                 </el-icon>
                 {{ t('parameters.binConfig.thresholds.tip') }}
               </p>
-              <el-button size="small" :icon="RefreshRight" @click="resetBinCapacityRules">
+              <el-button size="small" :icon="RefreshRight" :loading="capacitySaving" @click="resetBinCapacityRules">
                 {{ t('parameters.binConfig.restoreDefault') }}
               </el-button>
             </div>
@@ -420,10 +432,10 @@ async function applyParameters(): Promise<void> {
           <h2>{{ t('parameters.changeRecord.title') }}</h2>
         </header>
 
-        <el-table class="change-record__table" :data="changeRecordRows" size="small" border>
+        <el-table v-loading="changeRecordTableLoading" class="change-record__table" :data="changeRecordRows" size="small" border>
           <el-table-column prop="parameterKey" :label="t('parameters.changeRecord.columns.parameter')" min-width="160">
             <template #default="{ row }">
-              {{ t(row.parameterKey) }}
+              {{ row.parameterLabel ?? t(row.parameterKey) }}
             </template>
           </el-table-column>
           <el-table-column prop="originalValue" :label="t('parameters.changeRecord.columns.originalValue')" min-width="130" />
@@ -431,15 +443,27 @@ async function applyParameters(): Promise<void> {
           <el-table-column prop="changedAt" :label="t('parameters.changeRecord.columns.changedAt')" min-width="180" />
           <el-table-column prop="operatorKey" :label="t('parameters.changeRecord.columns.operator')" min-width="140">
             <template #default="{ row }">
-              {{ t(row.operatorKey) }}
+              {{ row.operatorLabel ?? t(row.operatorKey) }}
             </template>
           </el-table-column>
           <el-table-column prop="remarkKey" :label="t('parameters.changeRecord.columns.remark')" min-width="220">
             <template #default="{ row }">
-              {{ t(row.remarkKey) }}
+              {{ row.remarkLabel ?? t(row.remarkKey) }}
             </template>
           </el-table-column>
         </el-table>
+
+        <footer v-if="activeDevice === 'bins'" class="change-record__pagination">
+          <span>{{ t('parameters.changeRecord.total', { total: changeRecordTotal }) }}</span>
+          <el-pagination
+            v-model:current-page="changeRecordCurrentPage"
+            v-model:page-size="changeRecordPageSize"
+            background
+            layout="sizes, prev, pager, next, jumper"
+            :page-sizes="changeRecordPageSizeOptions"
+            :total="changeRecordTotal"
+          />
+        </footer>
       </section>
     </div>
   </section>
@@ -1265,6 +1289,17 @@ async function applyParameters(): Promise<void> {
       font-size: 12px;
       font-weight: 900;
     }
+  }
+
+  &__pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 12px;
+    color: #64748a;
+    font-size: 12px;
+    font-weight: 800;
   }
 }
 
