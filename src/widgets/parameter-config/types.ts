@@ -35,6 +35,7 @@ export type BinParameterTone = 'blue' | 'gray' | 'red'
 export interface BinParameterItem {
   key: BinParameterKey
   id?: number
+  isDraft?: boolean
   code: string
   type: string
   typeLabel: string

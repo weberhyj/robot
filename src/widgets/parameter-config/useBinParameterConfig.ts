@@ -19,6 +19,7 @@ import { useAppStore } from '@/stores/appStore'
 import { binParameterItems, defaultBinParameterForm } from './data'
 
 const binCapacitySettingKey = 'bin_capacity_alert'
+const newBinDraftKey = 'new'
 const changeRecordPageSizeOptions = [10, 20, 50]
 const fallbackMaterialTypeOptions: BinEnumOption[] = [
   { value: 'orange', label: 'orange' },
@@ -71,11 +72,20 @@ export function useBinParameterConfig() {
     }))
   })
 
-  const displayedBinItems = computed<BinParameterItem[]>(() => {
+  const baseBinItems = computed<BinParameterItem[]>(() => {
     if (!binListLoaded.value || binListFailed.value)
       return fallbackBinItems.value
 
     return binItems.value
+  })
+
+  const isEditingNewBin = computed(() => binParameterForm.activeBinKey === newBinDraftKey && binParameterForm.id === undefined)
+
+  const displayedBinItems = computed<BinParameterItem[]>(() => {
+    if (!isEditingNewBin.value)
+      return baseBinItems.value
+
+    return [mapCurrentBinFormToDraftItem(), ...baseBinItems.value]
   })
 
   onMounted(() => {
@@ -107,7 +117,7 @@ export function useBinParameterConfig() {
 
   function addBinPlaceholder(): void {
     prepareNewBinDraft()
-    ElMessage.info(t('parameters.binConfig.messages.newDraft'))
+    ElMessage.success(t('parameters.binConfig.messages.newDraft'))
   }
 
   async function resetBinCapacityRules(): Promise<void> {
@@ -164,7 +174,10 @@ export function useBinParameterConfig() {
         : await updateBin(binId, buildBinUpdatePayload())
 
       await updateBinCapacitySetting(buildCapacitySettingPayload())
-      ElMessage.success(t(isCreate ? 'parameters.binConfig.messages.created' : 'parameters.binConfig.messages.updated'))
+      const savedItem = mapBinStatusToParameterItem(savedBin)
+      upsertBinItem(savedItem)
+      selectBin(savedItem)
+      ElMessage.success(t(isCreate ? 'parameters.binConfig.messages.createdAndSelected' : 'parameters.binConfig.messages.updated'))
       await refreshBins(savedBin.id)
       await refreshFirstSettingHistoryPage()
     }
@@ -338,7 +351,7 @@ export function useBinParameterConfig() {
 
     Object.assign(binParameterForm, {
       ...defaultBinParameterForm,
-      activeBinKey: 'new',
+      activeBinKey: newBinDraftKey,
       code: buildNextBinCode(type),
       currentLoad: 0,
       fillRate: 0,
@@ -351,9 +364,24 @@ export function useBinParameterConfig() {
 
   function buildNextBinCode(type: string): string {
     const prefix = type === 'ng' ? 'BIN_NG' : 'BIN_OK'
-    const count = displayedBinItems.value.filter(item => item.type === type).length + 1
+    const count = baseBinItems.value.filter(item => item.type === type).length + 1
 
     return `${prefix}_${String(count).padStart(2, '0')}`
+  }
+
+  function upsertBinItem(bin: BinParameterItem): void {
+    const currentItems = binListLoaded.value && !binListFailed.value ? binItems.value : []
+    const existingIndex = currentItems.findIndex(item => item.id === bin.id)
+    const nextItems = [...currentItems]
+
+    if (existingIndex >= 0)
+      nextItems.splice(existingIndex, 1, bin)
+    else
+      nextItems.unshift(bin)
+
+    binItems.value = nextItems
+    binListLoaded.value = true
+    binListFailed.value = false
   }
 
   function buildCapacitySettingPayload(): BinCapacitySettingUpdatePayload {
@@ -448,6 +476,30 @@ export function useBinParameterConfig() {
     }
   }
 
+  function mapCurrentBinFormToDraftItem(): BinParameterItem {
+    return {
+      key: newBinDraftKey,
+      code: binParameterForm.code,
+      type: binParameterForm.type,
+      typeLabel: getBinTypeLabel(binParameterForm.type),
+      materialType: binParameterForm.materialType,
+      materialTypeLabel: getMaterialTypeLabel(binParameterForm.materialType),
+      calibrationLabel: t('parameters.binConfig.draftTag'),
+      image: binParameterItems[0].image,
+      isCalibrated: false,
+      isDraft: true,
+      tone: binParameterForm.type === 'ng' ? 'red' : 'blue',
+      maxCapacity: normalizeNumber(binParameterForm.maxCapacity),
+      currentLoad: 0,
+      fillRate: 0,
+      sizeX: normalizeNumber(binParameterForm.sizeX),
+      sizeY: normalizeNumber(binParameterForm.sizeY),
+      sizeZ: normalizeNumber(binParameterForm.sizeZ),
+      positionX: normalizeNumber(binParameterForm.positionX),
+      positionY: normalizeNumber(binParameterForm.positionY),
+    }
+  }
+
   function mapDefaultBinFormToItem(): BinParameterItem {
     return {
       key: defaultBinParameterForm.activeBinKey,
@@ -529,6 +581,7 @@ export function useBinParameterConfig() {
     changeRecordTotal,
     confirmDeleteBin,
     displayedBinItems,
+    isEditingNewBin,
     resetBinCapacityRules,
     resetBinParameterForm,
     resolvedBinTypeOptions,

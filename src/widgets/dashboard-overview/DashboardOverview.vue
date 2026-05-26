@@ -29,6 +29,9 @@ const liveStatusRefreshInterval = 5000
 const deviceDetailRefreshInterval = 1000
 const graspRecordPageSizeOptions = [10, 20, 50]
 type WorkstationStatus = 'running' | 'stopped'
+interface StopDeviceDetailRefreshOptions {
+  clearCameraStream?: boolean
+}
 const workstationStatus: WorkstationStatus = 'running'
 const binProgressColors = {
   blue: '#2563eb',
@@ -140,15 +143,19 @@ function openDeviceDetailDialog(device: DeviceStatusItem): void {
 }
 
 function startDeviceDetailRefresh(): void {
-  stopDeviceDetailRefresh()
+  stopDeviceDetailRefresh({ clearCameraStream: false })
   const refreshToken = ++deviceDetailRefreshToken
 
   void runDeviceDetailRefreshLoop(refreshToken)
 }
 
-function stopDeviceDetailRefresh(): void {
+function stopDeviceDetailRefresh(options: StopDeviceDetailRefreshOptions = {}): void {
+  const { clearCameraStream = true } = options
+
   deviceDetailRefreshToken += 1
-  cameraDetailStreamUrl.value = ''
+
+  if (clearCameraStream)
+    cameraDetailStreamUrl.value = ''
 
   if (deviceDetailTimer) {
     window.clearTimeout(deviceDetailTimer)
@@ -686,7 +693,9 @@ onBeforeUnmount(() => {
                   <span class="state-dot" :class="`is-${alarm.tone}`" />
                   <time>{{ alarm.time }}</time>
                   <strong :class="`text-${alarm.tone}`">{{ alarm.level }}</strong>
-                  <span>{{ alarm.content }}</span>
+                  <el-tooltip :content="alarm.content" placement="top" :show-after="250">
+                    <span class="alarm-panel__content">{{ alarm.content }}</span>
+                  </el-tooltip>
                   <em :class="alarm.unconfirmed ? 'text-red' : 'text-green'">{{ alarm.status }}</em>
                 </button>
               </div>
@@ -2214,6 +2223,14 @@ onBeforeUnmount(() => {
       font-weight: 700;
       text-align: right;
     }
+  }
+
+  &__content {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &__empty {

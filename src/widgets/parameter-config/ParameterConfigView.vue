@@ -34,6 +34,7 @@ const {
   changeRecordTotal,
   confirmDeleteBin,
   displayedBinItems,
+  isEditingNewBin,
   resetBinCapacityRules,
   resetBinParameterForm,
   resolvedBinTypeOptions,
@@ -232,11 +233,18 @@ async function applyParameters(): Promise<void> {
               </el-button>
             </div>
 
+            <p v-if="isEditingNewBin" class="bin-config-panel__draft-hint">
+              <el-icon :size="15">
+                <InfoFilled />
+              </el-icon>
+              <span>{{ t('parameters.binConfig.messages.newDraftHint') }}</span>
+            </p>
+
             <div
               v-for="bin in displayedBinItems"
               :key="bin.key"
               class="bin-config-panel__bin-item"
-              :class="[`is-${bin.tone}`, { 'is-active': binParameterForm.activeBinKey === bin.key }]"
+              :class="[`is-${bin.tone}`, { 'is-active': binParameterForm.activeBinKey === bin.key, 'is-draft': bin.isDraft }]"
               role="button"
               tabindex="0"
               :aria-pressed="binParameterForm.activeBinKey === bin.key"
@@ -247,7 +255,9 @@ async function applyParameters(): Promise<void> {
               <img :src="bin.image" :alt="bin.code">
               <span>
                 <strong>{{ bin.code }}</strong>
-                <small>{{ bin.calibrationLabel }}</small>
+                <small :class="{ 'is-draft': bin.isDraft }">
+                  {{ bin.isDraft ? t('parameters.binConfig.draftTag') : bin.calibrationLabel }}
+                </small>
               </span>
               <em>{{ bin.typeLabel }}</em>
               <b aria-hidden="true">&gt;</b>
@@ -861,6 +871,27 @@ async function applyParameters(): Promise<void> {
     gap: 12px;
   }
 
+  &__draft-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    border: 1px solid #c7dcff;
+    border-radius: 8px;
+    background: #f2f7ff;
+    color: #4f6688;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.45;
+    margin: -6px 0 0;
+    padding: 8px 10px;
+
+    .el-icon {
+      flex: 0 0 auto;
+      color: #397dff;
+      margin-top: 1px;
+    }
+  }
+
   &__bin-item {
     display: grid;
     min-height: 82px;
@@ -886,6 +917,15 @@ async function applyParameters(): Promise<void> {
       background: #f7fbff;
       box-shadow: 0 16px 26px -22px rgb(37 99 235 / 56%);
       transform: translateY(-1px);
+    }
+
+    &.is-draft {
+      border-color: #5f9fff;
+      background: linear-gradient(180deg, #f7fbff 0%, #fff 100%);
+      box-shadow:
+        0 0 0 1px rgb(95 159 255 / 18%),
+        0 18px 28px -24px rgb(37 99 235 / 62%);
+      animation: bin-draft-pop 260ms var(--rf-ease-out);
     }
 
     &.is-gray {
@@ -938,6 +978,10 @@ async function applyParameters(): Promise<void> {
       font-size: 13px;
       font-weight: 900;
       line-height: 1;
+
+      &.is-draft {
+        color: #2563eb;
+      }
     }
 
     em {
@@ -1108,6 +1152,24 @@ async function applyParameters(): Promise<void> {
       font-size: 12px;
       font-weight: 800;
     }
+  }
+}
+
+@keyframes bin-draft-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bin-config-panel__bin-item.is-draft {
+    animation: none;
   }
 }
 
