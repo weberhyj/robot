@@ -33,6 +33,14 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# AI efficiency log generated artifacts
+ai_log_*/
+AI增效日志*/
+AI增效日志*.docx
+AI增效日志*.pdf
+build_ai_efficiency_logs.py
+split_ai_efficiency_logs.py
+
 # Local environment and machine-specific config
 .env
 .env.*

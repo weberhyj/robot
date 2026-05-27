@@ -1,7 +1,7 @@
 {
   "name": "roboflow",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.0.8",
   "private": true,
   "description": "ROBOFLOW intelligent sorting desktop application",
   "author": {
@@ -19,7 +19,8 @@
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "version:sync": "node .github/scripts/sync-tauri-version.mjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
