@@ -14,17 +14,21 @@ export {
 export { checkAppUpdate, downloadAndInstallAppUpdate, relaunchApp } from './updateService'
 export {
   createBin,
+  createMaterial,
   deleteBin,
+  deleteMaterial,
   fetchAlertEnums,
   fetchAlertPage,
   fetchBinCapacitySetting,
   fetchBinEnums,
   fetchBins,
   fetchGraspRecordStatistics,
+  fetchMaterials,
   fetchSettingHistoryPage,
   fetchTaskGraspRecords,
   fetchTaskPage,
   resetBinCapacitySetting,
   updateBin,
   updateBinCapacitySetting,
+  updateMaterial,
 } from '@/adapters/http/plcRobotApi'

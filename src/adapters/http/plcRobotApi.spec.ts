@@ -2,11 +2,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   buildCameraStreamUrl,
   createBin,
+  createMaterial,
   deleteBin,
+  deleteMaterial,
   fetchAlertEnums,
   fetchAlertPage,
   fetchBinCapacitySetting,
   fetchBinEnums,
+  fetchMaterials,
   fetchSettingHistoryPage,
   resetBinCapacitySetting,
   sendGripperClose,
@@ -14,6 +17,7 @@ import {
   triggerCameraDetection,
   updateBin,
   updateBinCapacitySetting,
+  updateMaterial,
 } from './plcRobotApi'
 
 const fetchMock = vi.fn()
@@ -131,6 +135,81 @@ describe('plc robot HTTP API adapter', () => {
     })
 
     expectFetchCalledWith('/api/v1/bin/enums')
+  })
+
+  it('fetches material types with enabled filter', async () => {
+    vi.stubGlobal('window', { location: { protocol: 'http:' } })
+    vi.stubGlobal('fetch', fetchMock)
+    fetchMock.mockResolvedValue(createJsonResponse([
+      {
+        id: 1,
+        code: 'orange',
+        name: 'orange',
+        description: null,
+        sort_order: 10,
+        enabled: true,
+        created_at: '2026-05-28T10:00:00',
+        updated_at: '2026-05-28T10:00:00',
+      },
+    ]))
+
+    await expect(fetchMaterials({ enabled_only: true })).resolves.toMatchObject([
+      { id: 1, code: 'orange', enabled: true },
+    ])
+
+    expectFetchCalledWith('/api/v1/material?enabled_only=true')
+  })
+
+  it('creates, updates, and deletes material types', async () => {
+    vi.stubGlobal('window', { location: { protocol: 'http:' } })
+    vi.stubGlobal('fetch', fetchMock)
+    fetchMock
+      .mockResolvedValueOnce(createJsonResponse({ id: 4, code: 'banana', name: 'banana', description: null, sort_order: 40, enabled: true, created_at: null, updated_at: null }))
+      .mockResolvedValueOnce(createJsonResponse({ id: 4, code: 'banana', name: 'banana', description: 'yellow fruit', sort_order: 40, enabled: false, created_at: null, updated_at: null }))
+      .mockResolvedValueOnce(createNoContentResponse())
+
+    await expect(createMaterial({
+      code: 'banana',
+      enabled: true,
+      name: 'banana',
+      sort_order: 40,
+    })).resolves.toMatchObject({ id: 4, code: 'banana' })
+
+    await expect(updateMaterial(4, {
+      description: 'yellow fruit',
+      enabled: false,
+    })).resolves.toMatchObject({ id: 4, enabled: false })
+
+    await expect(deleteMaterial(4)).resolves.toBeUndefined()
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/v1/material', {
+      body: JSON.stringify({
+        code: 'banana',
+        enabled: true,
+        name: 'banana',
+        sort_order: 40,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+      signal: expect.any(AbortSignal),
+    })
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/v1/material/4', {
+      body: JSON.stringify({
+        description: 'yellow fruit',
+        enabled: false,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'PUT',
+      signal: expect.any(AbortSignal),
+    })
+    expect(fetchMock).toHaveBeenNthCalledWith(3, '/api/v1/material/4', {
+      method: 'DELETE',
+      signal: expect.any(AbortSignal),
+    })
   })
 
   it('creates a bin with JSON payload', async () => {

@@ -11,6 +11,7 @@ import type {
   GripperStatus,
   PlcStatus,
 } from '@/entities/device/types'
+import type { MaterialType, MaterialTypePayload, MaterialTypeQuery, MaterialTypeUpdatePayload } from '@/entities/material/types'
 import type { RobotStatus } from '@/entities/robot/types'
 import type {
   BinCapacitySetting,
@@ -71,6 +72,30 @@ export async function fetchBins(): Promise<BinStatus[]> {
 
 export async function fetchBinEnums(): Promise<BinEnumsResponse> {
   return requestJson<BinEnumsResponse>('/api/v1/bin/enums')
+}
+
+export async function fetchMaterials(query: MaterialTypeQuery = {}): Promise<MaterialType[]> {
+  return requestJson<MaterialType[]>(buildQueryPath('/api/v1/material', query))
+}
+
+export async function createMaterial(payload: MaterialTypePayload): Promise<MaterialType> {
+  return requestJson<MaterialType>('/api/v1/material', {
+    body: JSON.stringify(payload),
+    method: 'POST',
+  })
+}
+
+export async function updateMaterial(materialId: number, payload: MaterialTypeUpdatePayload): Promise<MaterialType> {
+  return requestJson<MaterialType>(`/api/v1/material/${materialId}`, {
+    body: JSON.stringify(payload),
+    method: 'PUT',
+  })
+}
+
+export async function deleteMaterial(materialId: number): Promise<void> {
+  await requestVoid(`/api/v1/material/${materialId}`, {
+    method: 'DELETE',
+  })
 }
 
 export async function createBin(payload: BinCreatePayload): Promise<BinStatus> {
@@ -227,7 +252,7 @@ function buildRequestInit(init: RequestInit, signal: AbortSignal): RequestInit {
   }
 }
 
-function buildQueryPath(path: string, query: Record<string, string | number | undefined>): string {
+function buildQueryPath(path: string, query: Record<string, boolean | number | string | undefined>): string {
   const params = new URLSearchParams()
 
   Object.entries(query).forEach(([key, value]) => {

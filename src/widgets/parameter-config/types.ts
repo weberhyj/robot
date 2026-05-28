@@ -78,3 +78,12 @@ export interface BinParameterForm {
   warningThreshold: number
   warningLevel: string
 }
+
+export interface MaterialTypeForm {
+  id?: number
+  code: string
+  name: string
+  description: string
+  sortOrder: number
+  enabled: boolean
+}

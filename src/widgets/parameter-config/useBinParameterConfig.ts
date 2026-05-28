@@ -584,6 +584,7 @@ export function useBinParameterConfig() {
     isEditingNewBin,
     resetBinCapacityRules,
     resetBinParameterForm,
+    refreshBinEnums,
     resolvedBinTypeOptions,
     resolvedMaterialTypeOptions,
     saveBinParameters,

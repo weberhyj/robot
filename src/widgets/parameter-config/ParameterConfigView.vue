@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ChangeRecordItem, ParameterDeviceKey } from './types'
-import { Box, Delete, InfoFilled, Minus, Plus, RefreshRight, WarningFilled } from '@element-plus/icons-vue'
+import { Box, Delete, Edit, InfoFilled, Minus, Plus, RefreshRight, WarningFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { computed, reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -12,6 +12,7 @@ import {
   speedPresetItems,
 } from './data'
 import { useBinParameterConfig } from './useBinParameterConfig'
+import { useMaterialTypeConfig } from './useMaterialTypeConfig'
 
 const { t } = useI18n()
 
@@ -37,11 +38,27 @@ const {
   isEditingNewBin,
   resetBinCapacityRules,
   resetBinParameterForm,
+  refreshBinEnums,
   resolvedBinTypeOptions,
   resolvedMaterialTypeOptions,
   saveBinParameters,
   selectBin,
 } = useBinParameterConfig()
+const {
+  confirmDeleteMaterialType,
+  isEditingMaterialType,
+  materialDeletingId,
+  materialDialogVisible,
+  materialList,
+  materialListLoading,
+  materialSaving,
+  materialTypeForm,
+  openMaterialManager,
+  refreshMaterials,
+  saveMaterialType,
+  startCreateMaterialType,
+  startEditMaterialType,
+} = useMaterialTypeConfig({ afterChange: refreshBinEnums })
 
 const activeDeviceItem = computed(() => {
   return parameterDeviceItems.find(item => item.key === activeDevice.value) ?? parameterDeviceItems[0]
@@ -308,7 +325,12 @@ async function applyParameters(): Promise<void> {
                 </div>
               </label>
               <label class="bin-config-panel__field">
-                <span>{{ t('parameters.binConfig.fields.materialType') }}</span>
+                <span class="bin-config-panel__field-label">
+                  <span>{{ t('parameters.binConfig.fields.materialType') }}</span>
+                  <el-button size="small" text type="primary" @click.prevent="openMaterialManager">
+                    {{ t('parameters.binConfig.materialManager.entry') }}
+                  </el-button>
+                </span>
                 <el-select v-model="binParameterForm.materialType" size="small" :loading="binEnumsLoading">
                   <el-option
                     v-for="option in resolvedMaterialTypeOptions"
@@ -435,6 +457,102 @@ async function applyParameters(): Promise<void> {
           </section>
         </div>
       </section>
+
+      <el-dialog
+        v-model="materialDialogVisible"
+        class="material-manager-dialog"
+        width="860px"
+        align-center
+        :teleported="false"
+      >
+        <template #header>
+          <strong class="material-manager-dialog__title">{{ t('parameters.binConfig.materialManager.title') }}</strong>
+        </template>
+
+        <div class="material-manager-dialog__body">
+          <section class="material-manager-dialog__form">
+            <header>
+              <h3>
+                {{ t(isEditingMaterialType ? 'parameters.binConfig.materialManager.editTitle' : 'parameters.binConfig.materialManager.createTitle') }}
+              </h3>
+              <el-button v-if="isEditingMaterialType" size="small" :icon="Plus" @click="startCreateMaterialType">
+                {{ t('parameters.binConfig.materialManager.actions.new') }}
+              </el-button>
+            </header>
+
+            <div class="material-manager-dialog__form-grid">
+              <label>
+                <span>{{ t('parameters.binConfig.materialManager.fields.code') }}</span>
+                <el-input v-model="materialTypeForm.code" size="small" />
+              </label>
+              <label>
+                <span>{{ t('parameters.binConfig.materialManager.fields.name') }}</span>
+                <el-input v-model="materialTypeForm.name" size="small" />
+              </label>
+              <label>
+                <span>{{ t('parameters.binConfig.materialManager.fields.sortOrder') }}</span>
+                <el-input-number v-model="materialTypeForm.sortOrder" size="small" :min="0" :precision="0" :controls="false" />
+              </label>
+              <label class="material-manager-dialog__switch">
+                <span>{{ t('parameters.binConfig.materialManager.fields.enabled') }}</span>
+                <el-switch v-model="materialTypeForm.enabled" size="small" />
+              </label>
+              <label class="is-wide">
+                <span>{{ t('parameters.binConfig.materialManager.fields.description') }}</span>
+                <el-input v-model="materialTypeForm.description" size="small" :rows="2" type="textarea" />
+              </label>
+            </div>
+
+            <el-button type="primary" size="small" :loading="materialSaving" @click="saveMaterialType">
+              {{ t(isEditingMaterialType ? 'parameters.binConfig.materialManager.actions.save' : 'parameters.binConfig.materialManager.actions.create') }}
+            </el-button>
+          </section>
+
+          <section class="material-manager-dialog__table">
+            <header>
+              <h3>{{ t('parameters.binConfig.materialManager.listTitle') }}</h3>
+              <el-button size="small" :icon="RefreshRight" :loading="materialListLoading" @click="refreshMaterials">
+                {{ t('parameters.binConfig.materialManager.actions.refresh') }}
+              </el-button>
+            </header>
+
+            <el-table v-loading="materialListLoading" :data="materialList" size="small" border>
+              <el-table-column prop="code" :label="t('parameters.binConfig.materialManager.fields.code')" min-width="120" />
+              <el-table-column prop="name" :label="t('parameters.binConfig.materialManager.fields.name')" min-width="120" />
+              <el-table-column prop="description" :label="t('parameters.binConfig.materialManager.fields.description')" min-width="160">
+                <template #default="{ row }">
+                  {{ row.description || '--' }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="sort_order" :label="t('parameters.binConfig.materialManager.fields.sortOrder')" width="92" align="center" />
+              <el-table-column prop="enabled" :label="t('parameters.binConfig.materialManager.fields.enabled')" width="96" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
+                    {{ t(row.enabled ? 'parameters.binConfig.materialManager.status.enabled' : 'parameters.binConfig.materialManager.status.disabled') }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('parameters.binConfig.materialManager.fields.actions')" width="144" align="center">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" :icon="Edit" @click="startEditMaterialType(row)">
+                    {{ t('parameters.binConfig.materialManager.actions.edit') }}
+                  </el-button>
+                  <el-button
+                    size="small"
+                    text
+                    type="danger"
+                    :icon="Delete"
+                    :loading="materialDeletingId === row.id"
+                    @click="confirmDeleteMaterialType(row)"
+                  >
+                    {{ t('parameters.binConfig.materialManager.actions.delete') }}
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </section>
+        </div>
+      </el-dialog>
 
       <section class="parameter-panel change-record">
         <header class="parameter-panel__header">
@@ -1052,6 +1170,28 @@ async function applyParameters(): Promise<void> {
     }
   }
 
+  &__field-label {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    :deep(.el-button) {
+      height: 20px;
+      flex: 0 0 auto;
+      font-size: 12px;
+      font-weight: 900;
+      padding: 0;
+    }
+  }
+
   h4 {
     color: #223047;
     font-size: 13px;
@@ -1151,6 +1291,154 @@ async function applyParameters(): Promise<void> {
       border-radius: 8px;
       font-size: 12px;
       font-weight: 800;
+    }
+  }
+}
+
+.material-manager-dialog {
+  :deep(.el-dialog) {
+    overflow: hidden;
+    border-radius: 10px;
+  }
+
+  :deep(.el-dialog__header) {
+    margin-right: 0;
+    border-bottom: 1px solid #edf2f7;
+    padding: 16px 18px 14px;
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 16px 18px 18px;
+  }
+
+  &__title {
+    color: #172033;
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  &__body {
+    display: grid;
+    grid-template-columns: 278px minmax(0, 1fr);
+    gap: 16px;
+    min-width: 0;
+  }
+
+  &__form,
+  &__table {
+    min-width: 0;
+    border-radius: 9px;
+    background: #f8fafd;
+    padding: 13px;
+
+    > header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 30px;
+      margin-bottom: 12px;
+
+      h3 {
+        margin: 0;
+        color: #172033;
+        font-size: 14px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .el-button {
+        height: 28px;
+        margin-left: 0;
+        border-radius: 7px;
+        font-size: 12px;
+        font-weight: 800;
+      }
+    }
+  }
+
+  &__form {
+    align-content: start;
+    display: grid;
+    gap: 12px;
+
+    > .el-button {
+      justify-self: end;
+      height: 30px;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+  }
+
+  &__form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 11px 12px;
+
+    label {
+      display: grid;
+      min-width: 0;
+      gap: 7px;
+
+      > span {
+        color: #64748a;
+        font-size: 12px;
+        font-weight: 900;
+        line-height: 1;
+      }
+    }
+
+    .is-wide {
+      grid-column: 1 / -1;
+    }
+
+    :deep(.el-input__wrapper),
+    :deep(.el-textarea__inner) {
+      border-radius: 7px;
+      box-shadow: 0 0 0 1px #dfe7f2 inset;
+    }
+
+    :deep(.el-input-number) {
+      width: 100%;
+    }
+
+    :deep(.el-input-number .el-input__inner) {
+      text-align: left;
+    }
+  }
+
+  &__switch {
+    align-content: start;
+
+    :deep(.el-switch) {
+      height: 28px;
+    }
+  }
+
+  &__table {
+    :deep(.el-table) {
+      overflow: hidden;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+
+    :deep(.el-table__cell) {
+      color: #506078;
+      font-weight: 800;
+      padding: 7px 0;
+    }
+
+    :deep(th.el-table__cell) {
+      color: #6c7b8f;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    :deep(.el-button) {
+      margin-left: 0;
+      padding: 0 3px;
     }
   }
 }
