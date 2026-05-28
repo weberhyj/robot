@@ -9,14 +9,15 @@ import cameraImage from '@/assets/images/devices/camera-photo.png'
 import conveyorImage from '@/assets/images/devices/conveyor-photo.png'
 import gripperImage from '@/assets/images/devices/gripper-photo.png'
 import workbenchImage from '@/assets/images/devices/workbench.svg'
-import { closeGripperJaw, detectCameraOnce, getCameraStatusSnapshot, getGripperStatusSnapshot, getPlcStatusSnapshot, openGripperJaw, startConveyorSoftly, stopConveyorSoftly } from '@/services'
+import { closeGripperJaw, detectCameraOnce, getCameraStatusSnapshot, getGripperStatusSnapshot, getPlcStatusSnapshot, openGripperJaw } from '@/services'
+import { useConveyorControl } from '@/shared/composables'
 import { useDeviceStatusStore } from '@/stores/deviceStatusStore'
 import { buildGripperCloseAmountMm } from './gripperControl'
 
 const { t } = useI18n()
 const deviceStatusStore = useDeviceStatusStore()
+const { conveyorCommandLoading, startConveyor, stopConveyor, resetConveyorFault } = useConveyorControl()
 
-const conveyorCommandLoading = shallowRef<'start' | 'stop'>()
 const gripperCommandLoading = shallowRef<'open' | 'close'>()
 const cameraDetectionLoading = shallowRef(false)
 const deviceStatusRefreshInterval = 5000
@@ -160,18 +161,6 @@ function normalizeGripperCloseInput(value: number | undefined, maxStrokeMm: numb
     return 0
 
   return Math.min(normalizeMillimeterLimit(value), maxStrokeMm)
-}
-
-async function startConveyor(): Promise<void> {
-  await runConveyorCommand('start', startConveyorSoftly, 'running')
-}
-
-async function stopConveyor(): Promise<void> {
-  await runConveyorCommand('stop', stopConveyorSoftly, 'standby')
-}
-
-function resetConveyorFault(): void {
-  deviceStatusStore.setConveyorStandby()
 }
 
 async function triggerRecognition(): Promise<void> {
@@ -371,43 +360,6 @@ async function runGripperCommand(
   finally {
     gripperCommandLoading.value = undefined
   }
-}
-
-async function runConveyorCommand(
-  command: 'start' | 'stop',
-  request: () => Promise<boolean>,
-  nextStatus: 'running' | 'standby',
-): Promise<void> {
-  if (conveyorCommandLoading.value)
-    return
-
-  conveyorCommandLoading.value = command
-
-  try {
-    const succeeded = await request()
-
-    if (!succeeded) {
-      ElMessage.error(t(`manual.messages.conveyor${capitalizeCommand(command)}Failed`))
-      return
-    }
-
-    if (nextStatus === 'running')
-      deviceStatusStore.setConveyorRunning()
-    else
-      deviceStatusStore.setConveyorStandby()
-
-    ElMessage.success(t(`manual.messages.conveyor${capitalizeCommand(command)}Success`))
-  }
-  catch {
-    ElMessage.error(t(`manual.messages.conveyor${capitalizeCommand(command)}Failed`))
-  }
-  finally {
-    conveyorCommandLoading.value = undefined
-  }
-}
-
-function capitalizeCommand(command: 'start' | 'stop'): 'Start' | 'Stop' {
-  return command === 'start' ? 'Start' : 'Stop'
 }
 
 function capitalizeGripperCommand(command: 'open' | 'close'): 'Open' | 'Close' {

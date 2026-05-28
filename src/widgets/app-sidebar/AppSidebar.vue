@@ -7,6 +7,7 @@ import { ElMessageBox } from 'element-plus'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { useConveyorControl } from '@/shared/composables'
 import { useAppStore } from '@/stores/appStore'
 import { controlModes } from './constants'
 
@@ -23,7 +24,14 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const appStore = useAppStore()
-const quickControlActionsDisabled = computed(() => appStore.controlMode === 'manual')
+const {
+  conveyorCommandLoading,
+  isConveyorCommandRunning,
+  startConveyor,
+  stopConveyor,
+  resetConveyorFault,
+} = useConveyorControl()
+const quickControlActionsDisabled = computed(() => appStore.controlMode === 'manual' || isConveyorCommandRunning.value)
 
 const navItems = computed<NavItem[]>(() => router
   .getRoutes()
@@ -128,13 +136,19 @@ async function setControlMode(mode: QuickControlMode): Promise<void> {
         <span class="app-sidebar__control-label">{{ t('quickControls.title') }}</span>
 
         <div class="app-sidebar__actions">
-          <el-button type="primary" :icon="VideoPlay" :disabled="quickControlActionsDisabled">
+          <el-button
+            type="primary" :icon="VideoPlay" :loading="conveyorCommandLoading === 'start'"
+            :disabled="quickControlActionsDisabled" @click="startConveyor"
+          >
             {{ t('quickControls.start') }}
           </el-button>
-          <el-button type="danger" plain :icon="VideoPause" :disabled="quickControlActionsDisabled">
+          <el-button
+            type="danger" plain :icon="VideoPause" :loading="conveyorCommandLoading === 'stop'"
+            :disabled="quickControlActionsDisabled" @click="stopConveyor"
+          >
             {{ t('quickControls.stop') }}
           </el-button>
-          <el-button :icon="RefreshRight" :disabled="quickControlActionsDisabled">
+          <el-button :icon="RefreshRight" :disabled="quickControlActionsDisabled" @click="resetConveyorFault">
             {{ t('quickControls.reset') }}
           </el-button>
           <el-button class="app-sidebar__emergency" type="danger" :icon="WarningFilled">

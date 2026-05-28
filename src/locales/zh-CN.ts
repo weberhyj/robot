@@ -415,8 +415,8 @@ export default {
     actions: {
       start: '启动',
       stop: '停止',
-      resetFault: '复位故障',
-      triggerRecognition: '单次触发识别',
+      resetFault: '故障复位',
+      triggerRecognition: '触发单次识别',
       viewRecognitionResult: '查看识别结果',
       open: '张开复位',
       close: '闭合',

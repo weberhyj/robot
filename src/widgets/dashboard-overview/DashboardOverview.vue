@@ -103,6 +103,8 @@ const deviceStatusItems = computed<DeviceStatusItem[]>(() => liveDeviceStatusSou
 }))
 
 const alarms = computed<AlarmRow[]>(() => liveAlarmRows.value)
+const shouldScrollAlarms = computed(() => alarms.value.length > taskDisplayLimit)
+const alarmPanelGroupIndexes = computed(() => shouldScrollAlarms.value ? [1, 2, 3] : [1])
 const openCriticalAlarmCount = computed(() => alarms.value.filter(alarm => alarm.unconfirmed).length)
 
 const tasks = computed<TaskRow[]>(() => liveTaskSources.value
@@ -683,8 +685,8 @@ onBeforeUnmount(() => {
             </el-tag>
           </header>
           <div class="alarm-panel__viewport">
-            <div v-if="alarms.length" class="alarm-panel__track">
-              <div v-for="groupIndex in 3" :key="groupIndex" class="alarm-panel__group" :aria-hidden="groupIndex !== 1">
+            <div v-if="alarms.length" class="alarm-panel__track" :class="{ 'is-scrolling': shouldScrollAlarms }">
+              <div v-for="groupIndex in alarmPanelGroupIndexes" :key="groupIndex" class="alarm-panel__group" :aria-hidden="groupIndex !== 1">
                 <button
                   v-for="alarm in alarms" :key="`${groupIndex}-${alarm.key}`" class="alarm-panel__row"
                   type="button" :aria-label="`${alarm.level} ${alarm.content}`" :tabindex="groupIndex === 1 ? 0 : -1"
@@ -2178,8 +2180,11 @@ onBeforeUnmount(() => {
 
   &__track {
     display: grid;
-    animation: alarm-list-scroll 12s linear infinite;
-    will-change: transform;
+
+    &.is-scrolling {
+      animation: alarm-list-scroll 12s linear infinite;
+      will-change: transform;
+    }
   }
 
   &__group {

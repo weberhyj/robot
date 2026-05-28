@@ -1,6 +1,6 @@
 [package]
 name = "roboflow"
-version = "0.0.8"
+version = "0.0.9"
 description = "ROBOFLOW intelligent sorting desktop application"
 authors = [ "ROBOFLOW Team" ]
 license = ""
